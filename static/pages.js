@@ -32,6 +32,313 @@ const pages = {
         if (phoneInput) {
             phoneInput.addEventListener('input', (e) => utils.handlePhoneInput(e));
         }
+
+        // 국적 선택에 따른 성/이름/미들네임 입력 제어
+        const nationalitySelect = document.getElementById('signup-nationality');
+        const lastNameInput = document.getElementById('signup-last-name');
+        const middleNameContainer = document.getElementById('signup-middle-name-container');
+        const middleNameInput = document.getElementById('signup-middle-name');
+        const passwordInput = document.getElementById('signup-password');
+        const confirmInput = document.getElementById('signup-password-confirm');
+        const passwordError = document.getElementById('signup-password-error');
+        const employeeNumberInput = document.getElementById('signup-employee-number');
+        const employeeNumberError = document.getElementById('signup-employee-number-error');
+
+        const isKoreanMode = () => {
+            return !nationalitySelect || nationalitySelect.value === 'korean';
+        };
+
+        const checkPasswordMatch = () => {
+            if (!passwordInput || !confirmInput || !passwordError) return;
+            const password = passwordInput.value;
+            const confirm = confirmInput.value;
+
+            if (!confirm) {
+                passwordError.style.display = 'none';
+                return;
+            }
+
+            if (password !== confirm) {
+                passwordError.textContent = isKoreanMode() ? '비밀번호가 일치하지 않습니다.' : 'Passwords do not match.';
+                passwordError.style.color = 'var(--danger-color)';
+                passwordError.style.display = 'block';
+            } else {
+                passwordError.textContent = isKoreanMode() ? '비밀번호가 일치합니다.' : 'Passwords match.';
+                passwordError.style.color = 'var(--secondary-color)';
+                passwordError.style.display = 'block';
+            }
+        };
+
+        const checkEmployeeNumber = () => {
+            if (!employeeNumberInput || !employeeNumberError) return;
+            const val = employeeNumberInput.value;
+            if (val.length > 0 && val.length < 8) {
+                employeeNumberError.textContent = isKoreanMode() ? '사번은 8자리 숫자여야 합니다.' : 'Employee ID must be an 8-digit number.';
+                employeeNumberError.style.display = 'block';
+            } else {
+                employeeNumberError.style.display = 'none';
+            }
+        };
+
+        if (nationalitySelect && lastNameInput && middleNameContainer) {
+            const handleNationalityChange = (val) => {
+                const lastNameContainer = document.getElementById('signup-last-name-container');
+                const firstNameContainer = document.getElementById('signup-first-name-container');
+                const firstNameInput = document.getElementById('signup-first-name');
+                const lastNameLabel = document.getElementById('signup-last-name-label');
+                const firstNameLabel = document.getElementById('signup-first-name-label');
+                const middleNameLabel = document.getElementById('signup-middle-name-label');
+                
+                const lastNameCheckboxContainer = document.getElementById('signup-last-name-checkbox-container');
+                const middleNameCheckboxContainer = document.getElementById('signup-middle-name-checkbox-container');
+                const lastNameUseCheckbox = document.getElementById('signup-last-name-use');
+                const middleNameUseCheckbox = document.getElementById('signup-middle-name-use');
+
+                // DOM 요소 참조 및 텍스트/플레이스홀더 변경 도우미 함수
+                const el = (id) => document.getElementById(id);
+                const txt = (id, text) => { const item = el(id); if (item) item.textContent = text; };
+                const ph = (id, value) => { const item = el(id); if (item) item.placeholder = value; };
+
+                if (val === 'korean') {
+                    // 내국인: 성(1) -> 이름(2) 순서, 크기는 동일하게 (flex: 1)
+                    if (lastNameContainer) {
+                        lastNameContainer.style.order = '1';
+                        lastNameContainer.style.flex = '1';
+                    }
+                    if (firstNameContainer) {
+                        firstNameContainer.style.order = '2';
+                        firstNameContainer.style.flex = '1';
+                    }
+                    if (middleNameContainer) {
+                        middleNameContainer.style.order = '3';
+                    }
+                    
+                    lastNameInput.required = true;
+                    lastNameInput.disabled = false;
+                    lastNameInput.style.backgroundColor = '#fff';
+                    lastNameInput.placeholder = '성';
+                    if (firstNameInput) firstNameInput.placeholder = '이름';
+                    
+                    if (lastNameLabel) lastNameLabel.textContent = '성';
+                    if (firstNameLabel) firstNameLabel.textContent = '이름';
+                    
+                    middleNameContainer.style.display = 'none';
+                    if (middleNameInput) {
+                        middleNameInput.value = '';
+                        middleNameInput.disabled = true;
+                        middleNameInput.style.backgroundColor = '#eee';
+                    }
+
+                    if (lastNameCheckboxContainer) lastNameCheckboxContainer.style.display = 'none';
+                    if (middleNameCheckboxContainer) middleNameCheckboxContainer.style.display = 'none';
+
+                    // 한국어 번역 적용
+                    txt('signup-title', '회원가입');
+                    txt('signup-email-label', '이메일');
+                    ph('signup-email-id', '이메일 아이디');
+                    ph('signup-email-domain', '도메인 입력');
+                    txt('signup-email-domain-custom-option', '직접 입력');
+                    txt('signup-nationality-label', '구분');
+                    txt('signup-nationality-korean-option', '내국인');
+                    txt('signup-nationality-foreigner-option', '외국인');
+                    txt('signup-department-label', '부서');
+                    txt('signup-department-default-option', '부서 선택');
+                    txt('signup-department-dev-option', '개발팀');
+                    txt('signup-department-med-option', '의료진');
+                    txt('signup-department-res-option', '연구진');
+                    txt('signup-gender-label', '성별');
+                    txt('signup-gender-default-option', '성별 선택');
+                    txt('signup-gender-male-option', '남성');
+                    txt('signup-gender-female-option', '여성');
+                    txt('signup-phone-label', '전화번호');
+                    ph('signup-phone', '전화번호 (예: 010-1234-5678)');
+                    txt('signup-employee-number-label', '사번');
+                    ph('signup-employee-number', '사번 (8자리 숫자)');
+                    txt('signup-password-label', '비밀번호');
+                    ph('signup-password', '비밀번호');
+                    txt('signup-password-confirm-label', '비밀번호 확인');
+                    ph('signup-password-confirm', '비밀번호 확인');
+                    txt('signup-submit-btn', '가입하기');
+                    txt('signup-cancel-btn', '취소');
+                    
+                    txt('signup-last-name-use-label', '있음');
+                    txt('signup-middle-name-use-label', '있음');
+                } else {
+                    // 외국인: 이름(1) -> 미들네임(2) -> 성(3) 순서 (First Name -> Middle Name -> Last Name), 3칸 동일하게
+                    if (firstNameContainer) {
+                        firstNameContainer.style.order = '1';
+                        firstNameContainer.style.flex = '1';
+                    }
+                    if (middleNameContainer) {
+                        middleNameContainer.style.order = '2';
+                        middleNameContainer.style.flex = '1';
+                    }
+                    if (lastNameContainer) {
+                        lastNameContainer.style.order = '3';
+                        lastNameContainer.style.flex = '1';
+                    }
+                    
+                    lastNameInput.required = false;
+                    lastNameInput.placeholder = 'Last Name (Optional)';
+                    if (firstNameInput) firstNameInput.placeholder = 'First Name';
+                    if (middleNameInput) middleNameInput.placeholder = 'Middle Name (Optional)';
+                    
+                    if (lastNameLabel) lastNameLabel.textContent = 'Last Name';
+                    if (firstNameLabel) firstNameLabel.textContent = 'First Name';
+                    if (middleNameLabel) middleNameLabel.textContent = 'Middle Name';
+                    
+                    middleNameContainer.style.display = 'block';
+
+                    // 외국인은 체크박스로 입력 여부를 선택해야 쓸 수 있게 함
+                    if (lastNameCheckboxContainer) lastNameCheckboxContainer.style.display = 'flex';
+                    if (middleNameCheckboxContainer) middleNameCheckboxContainer.style.display = 'flex';
+
+                    if (lastNameUseCheckbox) {
+                        lastNameInput.disabled = !lastNameUseCheckbox.checked;
+                        lastNameInput.style.backgroundColor = lastNameUseCheckbox.checked ? '#fff' : '#eee';
+                    }
+                    if (middleNameUseCheckbox) {
+                        middleNameInput.disabled = !middleNameUseCheckbox.checked;
+                        middleNameInput.style.backgroundColor = middleNameUseCheckbox.checked ? '#fff' : '#eee';
+                    }
+
+                    // 영어 번역 적용
+                    txt('signup-title', 'Sign Up');
+                    txt('signup-email-label', 'Email');
+                    ph('signup-email-id', 'Email ID');
+                    ph('signup-email-domain', 'Domain');
+                    txt('signup-email-domain-custom-option', 'Custom domain');
+                    txt('signup-nationality-label', 'Type');
+                    txt('signup-nationality-korean-option', 'Korean');
+                    txt('signup-nationality-foreigner-option', 'Foreigner');
+                    txt('signup-department-label', 'Department');
+                    txt('signup-department-default-option', 'Select Department');
+                    txt('signup-department-dev-option', 'Developer');
+                    txt('signup-department-med-option', 'Medical Team');
+                    txt('signup-department-res-option', 'Researcher');
+                    txt('signup-gender-label', 'Gender');
+                    txt('signup-gender-default-option', 'Select Gender');
+                    txt('signup-gender-male-option', 'Male');
+                    txt('signup-gender-female-option', 'Female');
+                    txt('signup-phone-label', 'Phone Number');
+                    ph('signup-phone', 'Phone Number (e.g. 010-1234-5678)');
+                    txt('signup-employee-number-label', 'Employee Number');
+                    ph('signup-employee-number', 'Employee ID (8 digits)');
+                    txt('signup-password-label', 'Password');
+                    ph('signup-password', 'Password');
+                    txt('signup-password-confirm-label', 'Confirm Password');
+                    ph('signup-password-confirm', 'Confirm Password');
+                    txt('signup-submit-btn', 'Sign Up');
+                    txt('signup-cancel-btn', 'Cancel');
+                    
+                    txt('signup-last-name-use-label', 'Use');
+                    txt('signup-middle-name-use-label', 'Use');
+                }
+
+                // 국적 변경 시 실시간 에러 메시지도 즉시 번역
+                checkPasswordMatch();
+                checkEmployeeNumber();
+            };
+            
+            nationalitySelect.addEventListener('change', (e) => handleNationalityChange(e.target.value));
+            
+            // 체크박스 클릭 이벤트 핸들러 바인딩
+            const lastNameUseCheckbox = document.getElementById('signup-last-name-use');
+            const middleNameUseCheckbox = document.getElementById('signup-middle-name-use');
+
+            if (lastNameUseCheckbox) {
+                lastNameUseCheckbox.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        lastNameInput.disabled = false;
+                        lastNameInput.style.backgroundColor = '#fff';
+                        lastNameInput.focus();
+                    } else {
+                        lastNameInput.disabled = true;
+                        lastNameInput.style.backgroundColor = '#eee';
+                        lastNameInput.value = '';
+                    }
+                });
+            }
+
+            if (middleNameUseCheckbox && middleNameInput) {
+                middleNameUseCheckbox.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        middleNameInput.disabled = false;
+                        middleNameInput.style.backgroundColor = '#fff';
+                        middleNameInput.focus();
+                    } else {
+                        middleNameInput.disabled = true;
+                        middleNameInput.style.backgroundColor = '#eee';
+                        middleNameInput.value = '';
+                    }
+                });
+            }
+
+            // 초기 로딩 시 상태 세팅
+            handleNationalityChange(nationalitySelect.value);
+        }
+
+        const emailIdInput = document.getElementById('signup-email-id');
+        const domainSelect = document.getElementById('signup-email-domain-select');
+        const domainInput = document.getElementById('signup-email-domain');
+        
+        if (domainSelect && domainInput) {
+            domainSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'custom') {
+                    domainInput.value = '';
+                    domainInput.readOnly = false;
+                    domainInput.focus();
+                } else {
+                    domainInput.value = e.target.value;
+                    domainInput.readOnly = true;
+                }
+            });
+        }
+
+        if (emailIdInput && domainInput && domainSelect) {
+            const handleEmailIdInput = (e) => {
+                const val = e.target.value.trim();
+                if (val.includes('@')) {
+                    const parts = val.split('@');
+                    const idPart = parts[0];
+                    const domainPart = parts[1] || '';
+                    
+                    emailIdInput.value = idPart;
+                    domainInput.value = domainPart;
+                    
+                    let found = false;
+                    for (let i = 0; i < domainSelect.options.length; i++) {
+                        if (domainSelect.options[i].value === domainPart) {
+                            domainSelect.value = domainPart;
+                            domainInput.readOnly = true;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        domainSelect.value = 'custom';
+                        domainInput.readOnly = false;
+                    }
+                }
+            };
+            emailIdInput.addEventListener('input', handleEmailIdInput);
+            emailIdInput.addEventListener('change', handleEmailIdInput);
+        }
+
+        // 비밀번호 실시간 일치 검증 바인딩
+        if (passwordInput && confirmInput && passwordError) {
+            passwordInput.addEventListener('input', checkPasswordMatch);
+            confirmInput.addEventListener('input', checkPasswordMatch);
+        }
+
+        // 사번 실시간 입력 제약 및 검증 (숫자만, 최대 8자리) 바인딩
+        if (employeeNumberInput && employeeNumberError) {
+            employeeNumberInput.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/[^\d]/g, '');
+                e.target.value = val.slice(0, 8); // 최대 8글자 제한
+                checkEmployeeNumber();
+            });
+        }
     },
 
     async renderPatients(params = {}) {
@@ -344,26 +651,100 @@ const pages = {
 
     async handleSignup(e) {
         e.preventDefault();
+
+        const nationality = document.getElementById('signup-nationality').value;
+        const isKorean = nationality === 'korean';
+
+        const password = document.getElementById('signup-password').value;
+        const confirmPassword = document.getElementById('signup-password-confirm').value;
+
+        if (password !== confirmPassword) {
+            utils.showAlert(
+                isKorean ? '비밀번호가 일치하지 않습니다.' : 'Passwords do not match.',
+                'error',
+                isKorean ? '검증 실패' : 'Validation Failed'
+            );
+            return;
+        }
+
+        const employeeNumber = document.getElementById('signup-employee-number').value.trim();
+        if (!/^\d{8}$/.test(employeeNumber)) {
+            utils.showAlert(
+                isKorean ? '사번은 8자리 숫자여야 합니다.' : 'Employee ID must be an 8-digit number.',
+                'error',
+                isKorean ? '검증 실패' : 'Validation Failed'
+            );
+            return;
+        }
+
+        const lastName = document.getElementById('signup-last-name').value.trim();
+        const firstName = document.getElementById('signup-first-name').value.trim();
+        const middleName = document.getElementById('signup-middle-name').value.trim();
+
+        if (isKorean) {
+            if (!lastName) {
+                utils.showAlert('성은 필수 입력 항목입니다.', 'error', '검증 실패');
+                return;
+            }
+            if (!firstName) {
+                utils.showAlert('이름은 필수 입력 항목입니다.', 'error', '검증 실패');
+                return;
+            }
+        } else {
+            if (!firstName) {
+                utils.showAlert('First Name is required.', 'error', 'Validation Failed');
+                return;
+            }
+        }
+
+        const emailId = document.getElementById('signup-email-id').value.trim();
+        const emailDomain = document.getElementById('signup-email-domain').value.trim();
         const userData = {
-            email: document.getElementById('signup-email').value,
-            name: document.getElementById('signup-name').value,
+            email: `${emailId}@${emailDomain}`,
+            nationality: nationality,
+            last_name: lastName || null,
+            first_name: firstName,
+            middle_name: middleName || null,
             department: document.getElementById('signup-department').value,
             gender: document.getElementById('signup-gender').value,
             phone_number: document.getElementById('signup-phone').value.replace(/[^\d]/g, ''),
-            password: document.getElementById('signup-password').value
+            password: password,
+            employee_number: employeeNumber
         };
 
         try {
             await apis.signup(userData);
-            utils.showAlert('회원가입이 완료되었습니다. 로그인해주세요.', 'success');
+            utils.showAlert(
+                isKorean ? '회원가입이 완료되었습니다. 로그인해주세요.' : 'Sign up completed. Please log in.',
+                'success'
+            );
             navigate('/login');
         } catch (err) {
             let msg = err.message;
-            if (err.status === 400 && (msg.includes('비밀번호') || msg.includes('password'))) {
-                msg = '비밀번호는 "대소문자, 특수문자, 숫자를 각 1개씩 포함한 8자리 이상이어야 합니다."';
+            if (err.status === 400) {
+                if (msg.includes('비밀번호') || msg.includes('password')) {
+                    msg = isKorean
+                        ? '비밀번호는 "대소문자, 특수문자, 숫자를 각 1개씩 포함한 8자리 이상이어야 합니다."'
+                        : 'Password must be 8-20 characters long and include uppercase, lowercase, numbers, and special characters.';
+                } else if (msg.includes('사번') || msg.includes('employee_number') || msg.includes('employee number') || msg.includes('employee')) {
+                    if (msg.includes('이미 가입된') || msg.includes('already registered') || msg.includes('already exists') || msg.includes('중복')) {
+                        msg = isKorean ? '이미 가입된 사번입니다.' : 'This Employee ID is already registered.';
+                    } else {
+                        msg = isKorean ? '사번은 8자리 숫자여야 합니다.' : 'Employee ID must be an 8-digit number.';
+                    }
+                } else if (msg.includes('이메일') || msg.includes('email')) {
+                    if (msg.includes('이미 등록된') || msg.includes('already registered') || msg.includes('이미 가입된')) {
+                        msg = isKorean ? '이미 등록된 이메일입니다.' : 'This email is already registered.';
+                    } else {
+                        msg = isKorean ? '올바른 이메일 형식이 아닙니다.' : 'Invalid email format.';
+                    }
+                } else if (msg.includes('나이') || msg.includes('age')) {
+                    msg = isKorean ? '나이는 최소 14세 이상이어야 합니다.' : 'Age must be 14 or older.';
+                }
+            } else if (err.status === 500) {
+                msg = isKorean ? '잠시 후 다시시도해주세요.' : 'Please try again later.';
             }
-            if (err.status === 500) msg = '잠시 후 다시시도해주세요.';
-            utils.showAlert(msg, 'error', '가입 실패');
+            utils.showAlert(msg, 'error', isKorean ? '가입 실패' : 'Registration Failed');
         }
     },
 
