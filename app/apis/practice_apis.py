@@ -89,11 +89,15 @@ def validate_nationality_names(nationality: str, first_name: str, last_name: str
             raise HTTPException(status_code=400, detail="외국인 미들네임(middle_name)은 최대 20글자 이하여야 합니다.")
 
 def validate_age(age: int):
+    if age is None:
+        raise HTTPException(status_code=400, detail="나이는 필수 입력 항목입니다.")
     # 나이는 최소 14세 이상
     if age < 14:
         raise HTTPException(status_code=400, detail="나이는 최소 14세 이상이어야 합니다.")
 
 def validate_email(email: str, current_user_id: int = None):
+    if email is None:
+        raise HTTPException(status_code=400, detail="이메일은 필수 입력 항목입니다.")
     # email 형식 정규표현식 검증
     if not EMAIL_REGEX.match(email):
         raise HTTPException(status_code=400, detail="올바른 이메일 형식이 아닙니다.")
@@ -106,6 +110,8 @@ def validate_email(email: str, current_user_id: int = None):
             raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
 
 def validate_password(password: str):
+    if password is None:
+        raise HTTPException(status_code=400, detail="비밀번호는 필수 입력 항목입니다.")
     # 최소 8자 이상, 최대 20자 이하
     if len(password) < 8 or len(password) > 20:
         raise HTTPException(status_code=400, detail="비밀번호는 최소 8자 이상, 최대 20자 이하여야 합니다.")
