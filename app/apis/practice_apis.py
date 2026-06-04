@@ -3,7 +3,7 @@ import re
 from typing import List
 # pyrefly: ignore [missing-import]
 from fastapi import APIRouter, HTTPException, Path
-from pydantic import BaseModel, Field
+from app.schemas.practice_schemas import UserCreateRequest, UserResponse, UserUpdateRequest
 
 # 1. 우리들만의 작은 라우터(표지판)를 생성합니다.
 # prefix를 "/practice_api"로 지정하여 요구사항의 endpoint 경로를 맞춥니다.
@@ -47,30 +47,8 @@ user_list = [
 ]
 
 # --- Pydantic 요청/응답 스키마 정의 ---
+# app/schemas/practice_schemas.py 파일로 분리하여 위에서 import 하였습니다.
 
-# 회원 등록 요청 바디
-class UserCreateRequest(BaseModel):
-    nationality: str
-    last_name: str | None = None
-    first_name: str
-    middle_name: str | None = None
-    age: int
-    email: str
-    password: str
-    employee_number: str
-
-
-
-# 회원 응답 바디 (비밀번호 제외)
-class UserResponse(BaseModel):
-    id: int
-    nationality: str
-    last_name: str | None = None
-    first_name: str
-    middle_name: str | None = None
-    age: int
-    email: str
-    employee_number: str
 
 
 # --- 입력값 검증용 Helper 함수 정의 ---
@@ -154,6 +132,8 @@ def validate_employee_number(employee_number: str):
             raise HTTPException(status_code=400, detail="이미 가입된 사번입니다.")
 
 
+
+
 # --- API Endpoint 구현 ---
 
 @router.get(
@@ -211,3 +191,78 @@ def create_user_handler(body: UserCreateRequest):
     }
     user_list.append(new_user)
     return new_user
+
+
+@router.patch(
+    "/users/{user_id}",
+    summary="회원 정보 수정 API",
+    response_model=UserResponse
+)
+def update_user_handler(
+    body: UserUpdateRequest,
+    user_id: int = Path(..., description="수정할 회원의 고유 ID")
+):
+    # 모든 항목이 입력되지 않은 경우 400 Bad Request
+    update_data = body.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=400, detail="수정할 정보를 최소 한 개 이상 입력해야 합니다.")
+
+    # 회원 ID 조회
+    target_user = None
+    for u in user_list:
+        if u["id"] == user_id:
+            target_user = u
+            break
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="존재하지 않는 회원 ID입니다.")
+
+    # 임시 검증을 위해 기존 사용자 정보와 입력값 병합
+    temp_user = target_user.copy()
+    for key, value in update_data.items():
+        temp_user[key] = value
+
+    # 1. 국적 및 이름 결합 검증
+    name_fields = {"nationality", "first_name", "last_name", "middle_name"}
+    if any(field in update_data for field in name_fields):
+        validate_nationality_names(
+            temp_user["nationality"],
+            temp_user["first_name"],
+            temp_user["last_name"],
+            temp_user["middle_name"]
+        )
+
+    # 2. 나이 검증
+    if "age" in update_data:
+        validate_age(update_data["age"])
+
+    # 3. 이메일 검증
+    if "email" in update_data:
+        validate_email(update_data["email"], current_user_id=user_id)
+
+    # 4. 비밀번호 검증
+    if "password" in update_data:
+        validate_password(update_data["password"])
+
+    # 모든 검증을 통과했으므로 실제 데이터 반영
+    for key, value in update_data.items():
+        target_user[key] = value
+
+    return target_user
+
+
+@router.delete(
+    "/users/{user_id}",
+    summary="회원 정보 삭제 API"
+)
+def delete_user_handler(
+    user_id: int = Path(..., description="삭제할 회원의 고유 ID")
+):
+    # 회원 ID 조회 및 삭제
+    for i, u in enumerate(user_list):
+        if u["id"] == user_id:
+            del user_list[i]
+            return {"message": "회원 정보가 삭제되었습니다."}
+
+    # 유효하지 않은 ID인 경우 404 Not Found
+    raise HTTPException(status_code=404, detail="존재하지 않는 회원 ID입니다.")
