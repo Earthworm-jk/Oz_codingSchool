@@ -138,6 +138,7 @@ const pages = {
                     ph('signup-email-id', '이메일 아이디');
                     ph('signup-email-domain', '도메인 입력');
                     txt('signup-email-domain-custom-option', '직접 입력');
+                    txt('signup-email-check-btn', '중복 확인');
                     txt('signup-nationality-label', '구분');
                     txt('signup-nationality-korean-option', '내국인');
                     txt('signup-nationality-foreigner-option', '외국인');
@@ -208,6 +209,7 @@ const pages = {
                     ph('signup-email-id', 'Email ID');
                     ph('signup-email-domain', 'Domain');
                     txt('signup-email-domain-custom-option', 'Custom domain');
+                    txt('signup-email-check-btn', 'Check');
                     txt('signup-nationality-label', 'Type');
                     txt('signup-nationality-korean-option', 'Korean');
                     txt('signup-nationality-foreigner-option', 'Foreigner');
@@ -339,6 +341,29 @@ const pages = {
                 checkEmployeeNumber();
             });
         }
+
+        // 중복 확인 상태 초기화
+        state.isEmailChecked = false;
+        state.checkedEmail = '';
+
+        // 이메일 구성 요소가 변경되면 중복 확인 리셋
+        const emailId = document.getElementById('signup-email-id');
+        const emailDomain = document.getElementById('signup-email-domain');
+        const emailDomainSelect = document.getElementById('signup-email-domain-select');
+        const emailMsg = document.getElementById('signup-email-check-msg');
+
+        const resetEmailCheck = () => {
+            state.isEmailChecked = false;
+            state.checkedEmail = '';
+            if (emailMsg) {
+                emailMsg.style.display = 'none';
+                emailMsg.textContent = '';
+            }
+        };
+
+        if (emailId) emailId.addEventListener('input', resetEmailCheck);
+        if (emailDomain) emailDomain.addEventListener('input', resetEmailCheck);
+        if (emailDomainSelect) emailDomainSelect.addEventListener('change', resetEmailCheck);
     },
 
     async renderPatients(params = {}) {
@@ -649,11 +674,67 @@ const pages = {
         await login(email, password); // (app.js)
     },
 
+    async handleEmailCheck(e) {
+        if (e) e.preventDefault();
+        
+        const nationality = document.getElementById('signup-nationality').value;
+        const isKorean = nationality === 'korean';
+        
+        const emailId = document.getElementById('signup-email-id').value.trim();
+        const emailDomain = document.getElementById('signup-email-domain').value.trim();
+        
+        if (!emailId || !emailDomain) {
+            utils.showAlert(
+                isKorean ? '이메일 아이디와 도메인을 모두 입력해 주세요.' : 'Please enter both email ID and domain.',
+                'error',
+                isKorean ? '검증 실패' : 'Validation Failed'
+            );
+            return;
+        }
+        
+        const email = `${emailId}@${emailDomain}`;
+        const emailMsg = document.getElementById('signup-email-check-msg');
+        
+        try {
+            const data = await apis.checkEmail(email);
+            state.isEmailChecked = true;
+            state.checkedEmail = email;
+            
+            if (emailMsg) {
+                emailMsg.style.display = 'block';
+                emailMsg.style.color = 'var(--secondary-color)';
+                emailMsg.textContent = isKorean ? '사용 가능한 이메일입니다.' : 'This email is available.';
+            }
+        } catch (err) {
+            state.isEmailChecked = false;
+            state.checkedEmail = '';
+            
+            if (emailMsg) {
+                emailMsg.style.display = 'block';
+                emailMsg.style.color = 'var(--danger-color)';
+                emailMsg.textContent = err.message || (isKorean ? '중복 확인에 실패했습니다.' : 'Failed to verify email.');
+            }
+        }
+    },
+
     async handleSignup(e) {
         e.preventDefault();
 
         const nationality = document.getElementById('signup-nationality').value;
         const isKorean = nationality === 'korean';
+
+        const emailId = document.getElementById('signup-email-id').value.trim();
+        const emailDomain = document.getElementById('signup-email-domain').value.trim();
+        const email = `${emailId}@${emailDomain}`;
+
+        if (!state.isEmailChecked || state.checkedEmail !== email) {
+            utils.showAlert(
+                isKorean ? '이메일 중복 확인을 해주세요.' : 'Please check email duplication.',
+                'error',
+                isKorean ? '검증 실패' : 'Validation Failed'
+            );
+            return;
+        }
 
         const password = document.getElementById('signup-password').value;
         const confirmPassword = document.getElementById('signup-password-confirm').value;
@@ -697,10 +778,8 @@ const pages = {
             }
         }
 
-        const emailId = document.getElementById('signup-email-id').value.trim();
-        const emailDomain = document.getElementById('signup-email-domain').value.trim();
         const userData = {
-            email: `${emailId}@${emailDomain}`,
+            email: email,
             nationality: nationality,
             last_name: lastName || null,
             first_name: firstName,

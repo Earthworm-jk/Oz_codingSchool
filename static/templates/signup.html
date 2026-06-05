@@ -3,17 +3,19 @@
     <form onsubmit="pages.handleSignup(event)">
         <label for="signup-email" id="signup-email-label">이메일</label>
         <div class="email-input-group" style="display: flex; align-items: center; gap: 6px; width: 100%;">
-            <input type="text" id="signup-email-id" placeholder="이메일 아이디" required style="flex: 1.3; min-width: 0; margin-bottom: 0; padding: 0.8rem 0.5rem;">
+            <input type="text" id="signup-email-id" placeholder="이메일 아이디" required style="flex: 1.2; min-width: 0; margin-bottom: 0; padding: 0.8rem 0.5rem; font-size: 0.85rem; box-sizing: border-box;">
             <span style="font-weight: bold; color: #555;">@</span>
-            <input type="text" id="signup-email-domain" placeholder="도메인 입력" required style="flex: 1.3; min-width: 0; margin-bottom: 0; padding: 0.8rem 0.5rem;">
-            <select id="signup-email-domain-select" style="flex: 1; min-width: 0; margin-bottom: 0; padding: 0.8rem 1.8rem 0.8rem 0.4rem; background-position: right 0.4rem center; font-size: 0.85rem;">
+            <input type="text" id="signup-email-domain" placeholder="도메인 입력" required style="flex: 1.2; min-width: 0; margin-bottom: 0; padding: 0.8rem 0.5rem; font-size: 0.85rem; box-sizing: border-box;">
+            <select id="signup-email-domain-select" style="flex: 1; min-width: 0; margin-bottom: 0; padding: 0.8rem 1.8rem 0.8rem 0.4rem; background-position: right 0.4rem center; font-size: 0.85rem; box-sizing: border-box;">
                 <option value="custom" id="signup-email-domain-custom-option">직접 입력</option>
                 <option value="naver.com">naver.com</option>
                 <option value="gmail.com">gmail.com</option>
                 <option value="daum.net">daum.net</option>
                 <option value="hanmail.net">hanmail.net</option>
             </select>
+            <button type="button" id="signup-email-check-btn" onclick="pages.handleEmailCheck(event)" class="secondary" style="flex: 0.9; min-width: 0; padding: 0.8rem 0.5rem; font-size: 0.85rem; margin-bottom: 0; white-space: nowrap; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">중복 확인</button>
         </div>
+        <div id="signup-email-check-msg" style="display: none; font-size: 0.8rem; margin-top: 4px; margin-bottom: 8px; font-weight: 500;"></div>
         
         <label for="signup-nationality" id="signup-nationality-label">구분</label>
         <select id="signup-nationality" required>

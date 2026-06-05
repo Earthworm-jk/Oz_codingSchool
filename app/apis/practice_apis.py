@@ -143,6 +143,25 @@ def validate_employee_number(employee_number: str):
 # --- API Endpoint 구현 ---
 
 @router.get(
+    "/users/check-email",
+    summary="이메일 중복 확인 API"
+)
+def check_email_handler(email: str):
+    # 이메일 형식 및 길이 검증
+    if not EMAIL_REGEX.match(email):
+        raise HTTPException(status_code=400, detail="올바른 이메일 형식이 아닙니다.")
+    if len(email) > 30:
+        raise HTTPException(status_code=400, detail="이메일은 최대 30자 이하여야 합니다.")
+    
+    # 중복 여부 확인
+    for u in user_list:
+        if u["email"] == email:
+            raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
+            
+    return {"message": "사용 가능한 이메일입니다."}
+
+
+@router.get(
     "/users",
     summary="전체 회원 목록 조회 API",
     response_model=List[UserResponse]

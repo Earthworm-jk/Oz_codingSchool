@@ -25,7 +25,8 @@ const apis = {
         }
 
         try {
-            const response = await fetch(`${API_BASE}${url}`, { ...options, headers });
+            const requestUrl = url.startsWith('/practice_api') ? url : `${API_BASE}${url}`;
+            const response = await fetch(requestUrl, { ...options, headers });
             
             // 401 Unauthorized 처리 (토큰 만료 시 리프레시 시도)
             if (response.status === 401) {
@@ -123,6 +124,15 @@ const apis = {
     },
 
     // --- Auth & Users ---
+    /**
+     * 이메일 중복 확인
+     */
+    async checkEmail(email) {
+        return await this.request(`/practice_api/users/check-email?email=${encodeURIComponent(email)}`, {
+            method: 'GET'
+        }, true);
+    },
+
     /**
      * 회원가입
      * [REQ-USER-001] 사내 구성원은 이메일, 비밀번호, 이름, 소속 부서, 성별, 전화번호를 입력하여 회원가입을 할 수 있다.
