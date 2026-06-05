@@ -1,0 +1,128 @@
+# 3일차 DB 모델 및 Alembic 마이그레이션 정리
+
+## 작업 목적
+
+ERD를 기준으로 SQLAlchemy ORM 모델을 작성하고, Alembic migration 파일을 통해 실제 데이터베이스 스키마를 생성할 수 있도록 준비했습니다.
+
+이번 프로젝트에서 `users`는 환자가 아니라 서비스에 로그인하는 의료진/직원 계정으로 해석합니다. `patients`는 의료진/직원이 관리하는 환자 정보입니다.
+
+## 작성한 모델 파일
+
+| 테이블 | 모델 파일 | 설명 |
+| --- | --- | --- |
+| `users` | `app/models/users.py` | 의료진/직원 사용자 계정 |
+| `patients` | `app/models/patients.py` | 환자 기본 정보 |
+| `medical_records` | `app/models/medical_records.py` | 환자의 진료 기록 |
+| `xray_images` | `app/models/xray_images.py` | X-ray 이미지 정보 |
+| `ai_analysis_results` | `app/models/ai_analysis_results.py` | AI 분석 결과 |
+
+## 반영한 관계
+
+| 관계 | 설명 |
+| --- | --- |
+| `patients.id` -> `medical_records.patient_id` | 환자 1명은 여러 진료 기록을 가질 수 있음 |
+| `medical_records.id` -> `xray_images.record_id` | 진료 기록 1개는 여러 X-ray 이미지를 가질 수 있음 |
+| `medical_records.id` -> `ai_analysis_results.record_id` | 진료 기록 1개는 여러 AI 분석 결과를 가질 수 있음 |
+| `users.id` -> `xray_images.uploader_id` | 의료진/직원 사용자가 X-ray 이미지를 업로드함 |
+
+## 팀 확장 필드 반영
+
+ERD의 `users` 기본 구조에 더해, 팀에서 회원가입 UI/API 확장 방향으로 합의한 필드를 추가했습니다.
+
+| 필드 | 이유 |
+| --- | --- |
+| `nationality` | 내국인/외국인 구분 |
+| `first_name`, `last_name`, `middle_name` | 이름 구조 분리 |
+| `employee_number` | 사번 기반 중복 가입 방지 |
+
+`password_confirm`은 DB 저장 대상이 아니라 요청 검증용 값이므로 모델에 포함하지 않았습니다.
+
+## Alembic 설정
+
+`alembic/env.py`는 다음 흐름으로 모델 정보를 읽습니다.
+
+```python
+from app.core.db.databases import Base, DATABASE_URL
+from app import models
+
+target_metadata = Base.metadata
+```
+
+따라서 `app/models/__init__.py`에서 모든 모델을 import하도록 연결했습니다.
+
+## 생성된 Migration 파일
+
+```text
+alembic/versions/539d910b57d8_create_medical_schema.py
+```
+
+이 migration 파일은 다음 테이블을 생성합니다.
+
+```text
+users
+patients
+medical_records
+xray_images
+ai_analysis_results
+```
+
+## 실행한 검증
+
+모델 metadata 인식 확인:
+
+```bash
+uv run python -c "from app.core.db.databases import Base; import app.models; print(sorted(Base.metadata.tables.keys()))"
+```
+
+확인 결과:
+
+```text
+['ai_analysis_results', 'medical_records', 'patients', 'users', 'xray_images']
+```
+
+DB 접속 없이 Alembic SQL 생성 확인:
+
+```bash
+uv run alembic upgrade head --sql
+```
+
+확인 결과:
+
+```text
+CREATE TABLE users ...
+CREATE TABLE patients ...
+CREATE TABLE medical_records ...
+CREATE TABLE ai_analysis_results ...
+CREATE TABLE xray_images ...
+```
+
+## 실제 DB 적용 명령어
+
+MySQL 접속 정보가 맞는 상태에서 아래 명령어를 실행합니다.
+
+```bash
+uv run alembic upgrade head
+```
+
+현재 로컬에서는 `.env`가 없어서 기본 DB 설정(`root/password1234`)으로 접속을 시도했고, MySQL 인증 오류가 발생했습니다.
+
+```text
+Access denied for user 'root'@'localhost'
+```
+
+따라서 실제 DB Viewer 캡처는 팀 MySQL 접속 정보 또는 Docker MySQL 환경이 정리된 뒤 추가해야 합니다.
+
+## DB Viewer 캡처
+
+아래 항목은 `uv run alembic upgrade head` 실행 성공 후 캡처해서 추가합니다.
+
+- `users` 테이블 컬럼 확인
+- `patients` 테이블 컬럼 확인
+- `medical_records`, `xray_images`, `ai_analysis_results` 테이블 확인
+- 외래키 관계 확인
+
+이미지 추가 위치:
+
+```md
+![DB Viewer 테이블 확인](../media/3일차_db_viewer_tables.png)
+```
