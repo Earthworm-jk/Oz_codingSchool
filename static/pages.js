@@ -138,6 +138,7 @@ const pages = {
                     ph('signup-email-id', '이메일 아이디');
                     ph('signup-email-domain', '도메인 입력');
                     txt('signup-email-domain-custom-option', '직접 입력');
+                    txt('signup-email-check-btn', '중복 확인');
                     txt('signup-nationality-label', '구분');
                     txt('signup-nationality-korean-option', '내국인');
                     txt('signup-nationality-foreigner-option', '외국인');
@@ -208,6 +209,7 @@ const pages = {
                     ph('signup-email-id', 'Email ID');
                     ph('signup-email-domain', 'Domain');
                     txt('signup-email-domain-custom-option', 'Custom domain');
+                    txt('signup-email-check-btn', 'Check');
                     txt('signup-nationality-label', 'Type');
                     txt('signup-nationality-korean-option', 'Korean');
                     txt('signup-nationality-foreigner-option', 'Foreigner');
