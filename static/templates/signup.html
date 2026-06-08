@@ -1,37 +1,95 @@
 <div class="card auth-card">
-    <h2>회원가입</h2>
+    <h2 id="signup-title">회원가입</h2>
     <form onsubmit="pages.handleSignup(event)">
-        <label for="signup-email">이메일</label>
-        <input type="email" id="signup-email" placeholder="이메일" required>
+        <label for="signup-email" id="signup-email-label">이메일</label>
+        <div class="email-input-group" style="display: flex; align-items: center; gap: 6px; width: 100%;">
+            <input type="text" id="signup-email-id" placeholder="이메일 아이디" required style="flex: 1.2; min-width: 0; margin-bottom: 0; padding: 0.8rem 0.5rem; font-size: 0.85rem; box-sizing: border-box;">
+            <span style="font-weight: bold; color: #555;">@</span>
+            <input type="text" id="signup-email-domain" placeholder="도메인 입력" required style="flex: 1.2; min-width: 0; margin-bottom: 0; padding: 0.8rem 0.5rem; font-size: 0.85rem; box-sizing: border-box;">
+            <select id="signup-email-domain-select" style="flex: 1; min-width: 0; margin-bottom: 0; padding: 0.8rem 1.8rem 0.8rem 0.4rem; background-position: right 0.4rem center; font-size: 0.85rem; box-sizing: border-box;">
+                <option value="custom" id="signup-email-domain-custom-option">직접 입력</option>
+                <option value="naver.com">naver.com</option>
+                <option value="gmail.com">gmail.com</option>
+                <option value="daum.net">daum.net</option>
+                <option value="hanmail.net">hanmail.net</option>
+            </select>
+            <button type="button" id="signup-email-check-btn" onclick="pages.handleEmailCheck(event)" class="secondary" style="flex: 0.9; min-width: 0; padding: 0.8rem 0.5rem; font-size: 0.85rem; margin-bottom: 0; white-space: nowrap; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">중복 확인</button>
+        </div>
+        <div id="signup-email-check-msg" style="display: none; font-size: 0.8rem; margin-top: 4px; margin-bottom: 8px; font-weight: 500;"></div>
         
-        <label for="signup-name">이름</label>
-        <input type="text" id="signup-name" placeholder="이름" required>
-        
-        <label for="signup-department">부서</label>
-        <select id="signup-department" required>
-            <option value="">부서 선택</option>
-            <option value="developer">개발팀</option>
-            <option value="medical team">의료진</option>
-            <option value="researcher">연구진</option>
+        <label for="signup-nationality" id="signup-nationality-label">구분</label>
+        <select id="signup-nationality" required>
+            <option value="korean" id="signup-nationality-korean-option">내국인</option>
+            <option value="foreigner" id="signup-nationality-foreigner-option">외국인</option>
         </select>
+
+        <div id="signup-name-group" style="display: flex; gap: 8px; width: 100%;">
+            <div id="signup-last-name-container" style="flex: 1; min-width: 0; order: 1; display: flex; flex-direction: column;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.3rem;">
+                    <label for="signup-last-name" id="signup-last-name-label" style="margin-bottom: 0;">성</label>
+                    <span id="signup-last-name-checkbox-container" style="display: none; align-items: center; gap: 4px;">
+                        <input type="checkbox" id="signup-last-name-use" style="margin: 0; width: auto; height: auto;">
+                        <label for="signup-last-name-use" id="signup-last-name-use-label" style="margin: 0; font-size: 0.8rem; font-weight: 500; color: #666;">있음</label>
+                    </span>
+                </div>
+                <input type="text" id="signup-last-name" placeholder="성" required style="width: 100%; box-sizing: border-box; margin-bottom: 0;">
+            </div>
+            <div id="signup-first-name-container" style="flex: 1; min-width: 0; order: 2; display: flex; flex-direction: column;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.3rem;">
+                    <label for="signup-first-name" id="signup-first-name-label" style="margin-bottom: 0;">이름</label>
+                </div>
+                <input type="text" id="signup-first-name" placeholder="이름" required style="width: 100%; box-sizing: border-box; margin-bottom: 0;">
+            </div>
+            <div id="signup-middle-name-container" style="flex: 1; min-width: 0; order: 3; display: none; flex-direction: column;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.3rem;">
+                    <label for="signup-middle-name" id="signup-middle-name-label" style="margin-bottom: 0;">미들네임</label>
+                    <span id="signup-middle-name-checkbox-container" style="display: flex; align-items: center; gap: 4px;">
+                        <input type="checkbox" id="signup-middle-name-use" style="margin: 0; width: auto; height: auto;">
+                        <label for="signup-middle-name-use" id="signup-middle-name-use-label" style="margin: 0; font-size: 0.8rem; font-weight: 500; color: #666;">있음</label>
+                    </span>
+                </div>
+                <input type="text" id="signup-middle-name" placeholder="미들네임" disabled style="width: 100%; box-sizing: border-box; margin-bottom: 0; background-color: #eee;">
+            </div>
+        </div>
         
-        <label for="signup-gender">성별</label>
-        <select id="signup-gender" required>
-            <option value="">성별 선택</option>
-            <option value="male">남성</option>
-            <option value="female">여성</option>
-        </select>
+        <div style="display: flex; gap: 8px; width: 100%;">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                <label for="signup-department" id="signup-department-label">부서</label>
+                <select id="signup-department" required style="width: 100%; box-sizing: border-box; margin-bottom: 0;">
+                    <option value="" id="signup-department-default-option">부서 선택</option>
+                    <option value="developer" id="signup-department-dev-option">개발팀</option>
+                    <option value="medical team" id="signup-department-med-option">의료진</option>
+                    <option value="researcher" id="signup-department-res-option">연구진</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                <label for="signup-gender" id="signup-gender-label">성별</label>
+                <select id="signup-gender" required style="width: 100%; box-sizing: border-box; margin-bottom: 0;">
+                    <option value="" id="signup-gender-default-option">성별 선택</option>
+                    <option value="male" id="signup-gender-male-option">남성</option>
+                    <option value="female" id="signup-gender-female-option">여성</option>
+                </select>
+            </div>
+        </div>
         
-        <label for="signup-phone">전화번호</label>
+        <label for="signup-phone" id="signup-phone-label">전화번호</label>
         <input type="tel" id="signup-phone" placeholder="전화번호 (예: 010-1234-5678)" required>
         <div id="signup-phone-error" class="error-message" style="display: none; color: var(--danger-color); font-size: 0.85rem; margin-top: -0.5rem; margin-bottom: 0.5rem;"></div>
+
+        <label for="signup-employee-number" id="signup-employee-number-label">사번</label>
+        <input type="text" id="signup-employee-number" placeholder="사번 (8자리 숫자)" required>
+        <div id="signup-employee-number-error" class="error-message" style="display: none; color: var(--danger-color); font-size: 0.85rem; margin-top: -0.5rem; margin-bottom: 0.5rem;"></div>
         
-        <label for="signup-password">비밀번호</label>
+        <label for="signup-password" id="signup-password-label">비밀번호</label>
         <input type="password" id="signup-password" placeholder="비밀번호" required>
         
+        <label for="signup-password-confirm" id="signup-password-confirm-label">비밀번호 확인</label>
+        <input type="password" id="signup-password-confirm" placeholder="비밀번호 확인" required>
+        <div id="signup-password-error" class="error-message" style="display: none; color: var(--danger-color); font-size: 0.85rem; margin-top: -0.5rem; margin-bottom: 0.5rem;"></div>
+        
         <div class="form-actions">
-            <button type="submit">가입하기</button>
-            <button type="button" class="secondary" onclick="navigate('/login')">취소</button>
+            <button type="submit" id="signup-submit-btn">가입하기</button>
+            <button type="button" class="secondary" onclick="navigate('/login')" id="signup-cancel-btn">취소</button>
         </div>
     </form>
 </div>
