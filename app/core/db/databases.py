@@ -15,6 +15,11 @@ AsyncSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False, expir
 # 모델 베이스 생성
 Base = declarative_base()
 
+from app.models.users import User
+from app.models.patients import Patient
+from app.models.medical_records import MedicalRecord
+from app.models.xray_images import XrayImage
+from app.models.ai_analysis_results import AiAnalysisResult
 # 세션 생성 함수
 async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as db:

@@ -14,8 +14,8 @@ sys.path.append(os.getcwd())
 from app.core.db.databases import Base, DATABASE_URL
 
 # Model Import
-from app import models
-
+# from app import models
+target_metadata = Base.metadata
 # Alembic Config object
 config = context.config
 
@@ -55,8 +55,13 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata)
+    # 1. DB 연결 설정 (이 코드가 핵심입니다)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+    )
 
+    # 2. 마이그레이션 실행
     with context.begin_transaction():
         context.run_migrations()
 
