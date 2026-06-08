@@ -9,13 +9,13 @@
 회원가입의 다국어 레이아웃 제어 및 백엔드 API 연동 흐름을 직관적으로 이해하기 위한 시각 자료입니다.
 
 ### 1. 흐름도 (Workflow Flowchart)
-![회원가입 처리 흐름도](../media/signup_flowchart.png)
+![회원가입 처리 흐름도](../media/2일차_signup_flowchart.png)
 
 ### 2. 회원가입 UI/UX 구성도 (UI Layout Mockup)
-![회원가입 내국인 및 외국인 UI 비교 구성도](../media/signup_ui_mockup.png)
+![회원가입 내국인 및 외국인 UI 비교 구성도](../media/2일차_signup_ui_mockup.png)
 
 ### 3. 전체 아키텍처 다이어그램 (Generated Architecture)
-![회원가입 다국어 변환 및 API 연동 아키텍처](../media/signup_flow_infographic.png)
+![회원가입 다국어 변환 및 API 연동 아키텍처](../media/2일차_signup_flow_infographic.png)
 
 ---
 
