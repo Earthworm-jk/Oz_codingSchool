@@ -96,33 +96,55 @@ CREATE TABLE ai_analysis_results ...
 CREATE TABLE xray_images ...
 ```
 
-## 실제 DB 적용 명령어
+## 실제 DB 적용 결과
 
-MySQL 접속 정보가 맞는 상태에서 아래 명령어를 실행합니다.
+Aiven MySQL의 `ai_health` 데이터베이스에 아래 명령어로 migration을 적용했습니다.
 
 ```bash
 uv run alembic upgrade head
 ```
 
-현재 로컬에서는 `.env`가 없어서 기본 DB 설정(`root/password1234`)으로 접속을 시도했고, MySQL 인증 오류가 발생했습니다.
+적용 후 Alembic 현재 revision을 확인했습니다.
 
-```text
-Access denied for user 'root'@'localhost'
+```bash
+uv run alembic current
 ```
 
-따라서 실제 DB Viewer 캡처는 팀 MySQL 접속 정보 또는 Docker MySQL 환경이 정리된 뒤 추가해야 합니다.
+확인 결과:
+
+```text
+539d910b57d8 (head)
+```
+
+DB에 생성된 테이블:
+
+```text
+users
+patients
+medical_records
+xray_images
+ai_analysis_results
+alembic_version
+```
+
+확인된 외래키 관계:
+
+```text
+medical_records.patient_id -> patients.id
+xray_images.record_id -> medical_records.id
+xray_images.uploader_id -> users.id
+ai_analysis_results.record_id -> medical_records.id
+```
+
+`.env`에는 Aiven 접속 정보를 입력하되, DB 비밀번호가 포함되므로 GitHub에 업로드하지 않습니다.
 
 ## DB Viewer 캡처
 
-아래 항목은 `uv run alembic upgrade head` 실행 성공 후 캡처해서 추가합니다.
+Aiven MySQL의 `ai_health` 데이터베이스에 접속하여 DB Viewer에서 다음 항목을 확인했습니다.
 
-- `users` 테이블 컬럼 확인
-- `patients` 테이블 컬럼 확인
-- `medical_records`, `xray_images`, `ai_analysis_results` 테이블 확인
-- 외래키 관계 확인
+- `users`, `patients`, `medical_records`, `xray_images`, `ai_analysis_results` 테이블 생성
+- `alembic_version` 테이블 생성
+- `users` 테이블 컬럼 생성
+- `medical_records`, `xray_images`, `ai_analysis_results`의 FK 컬럼 생성
 
-이미지 추가 위치:
-
-```md
 ![DB Viewer 테이블 확인](../media/3일차_db_viewer_tables.png)
-```
