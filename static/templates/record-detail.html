@@ -8,8 +8,45 @@
             <p><strong>등록일:</strong> <span id="created-at"></span></p>
         </div>
         <div style="flex: 1;">
-            <p><strong>X-Ray 이미지:</strong></p>
-            <img id="xray-img" src="" alt="X-Ray" style="max-width: 100%; border-radius: 8px;">
+            <p><strong>X-Ray 이미지 및 AI 분석(Grad-CAM) 결과:</strong></p>
+            <div class="xray-viewer-container">
+                <!-- Base X-Ray Image -->
+                <img id="xray-img" src="" alt="X-Ray" class="base-image">
+                <!-- Grad-CAM Heatmap Image (overlay) -->
+                <img id="heatmap-img" src="" alt="Grad-CAM Heatmap" class="heatmap-image" style="display: none; opacity: 0.45;">
+            </div>
+
+            <!-- Heatmap viewer controls (shown when prediction is run) -->
+            <div id="heatmap-controls" class="viewer-controls-card" style="display: none;">
+                <div class="opacity-control-group">
+                    <label for="opacity-slider">히트맵 불투명도:</label>
+                    <input type="range" id="opacity-slider" class="opacity-slider" min="0" max="100" value="45">
+                    <span id="opacity-val-label" class="opacity-value">45%</span>
+                </div>
+                
+                <div class="toggle-control-group">
+                    <div class="toggle-label">
+                        <span class="toggle-title">오버레이 활성화</span>
+                        <span class="toggle-desc">원본 X-Ray와 AI 히트맵 중첩 보기</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="overlay-toggle" checked>
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+
+                <!-- Color legend bar -->
+                <div class="heatmap-legend">
+                    <div class="legend-title">의심 영역 강도 (Grad-CAM Activation)</div>
+                    <div class="legend-bar-wrapper">
+                        <div class="legend-bar"></div>
+                        <div class="legend-labels">
+                            <span>낮음 (NORMAL)</span>
+                            <span>높음 (PNEUMONIA)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
