@@ -120,3 +120,76 @@
 * **실패 (400 Bad Request)**:
   * `지원되지 않는 이미지 포맷입니다.`
   * `비어 있는 파일입니다.`
+
+---
+
+## 4. Grad-CAM 기술 사양 및 프론트엔드 시각화 가이드
+
+### 4.1 Grad-CAM (Gradient-weighted Class Activation Mapping) 원리
+본 서비스는 AI의 판독 신뢰성을 높이기 위해 **설명 가능한 AI (XAI)** 기술인 Grad-CAM을 제공합니다.
+* **레이어 타겟팅**: `SimpleCNN` 모델의 마지막 컨볼루션 레이어(`model.conv[3]`)의 활성화 맵(Feature Map)을 타겟으로 합니다.
+* **그라디언트 캡처**: 순전파를 통해 폐렴 점수(Score)를 계산하고 역전파 시 해당 활성화 맵에 흐르는 그라디언트를 계산해 가중치를 얻습니다.
+* **히트맵 생성**: 수집된 가중치와 활성화 맵을 가중합한 후, 양의 활성화 영역만 추출하는 ReLU 연산을 적용하여 최종 히트맵을 생성합니다.
+* **저장 및 제공**: 히트맵은 원본 흉부 X-ray와 오버레이(투명도 45%)되어 `/media/heatmap/record_{record_id}.png` 경로에 저장됩니다.
+
+### 4.2 프론트엔드 UI/UX 시각화 권장 사양
+프론트엔드에서는 의료진이 병변 의심 부위를 직관적으로 판별할 수 있도록 아래와 같은 UI 구성을 구현하는 것을 강력히 권장합니다.
+
+1. **원본 X-ray 및 Heatmap 오버레이 레이아웃**
+   * CSS `absolute` 포지셔닝을 사용하여 원본 X-ray 이미지 위에 히트맵 이미지를 동일 크기로 정확하게 겹쳐서 배치합니다.
+2. **실시간 투명도(Opacity) 슬라이더 컨트롤**
+   * HTML `<input type="range" min="0" max="100">` 슬라이더를 배치하여 사용자가 히트맵 이미지의 투명도(CSS `opacity`)를 실시간 조절할 수 있도록 합니다.
+3. **히트맵 토글 및 범례 레전드 제공**
+   * 히트맵을 즉시 켜고 끌 수 있는 토글 스위치와 히트맵의 강도(빨강 = 높은 의심도, 파랑 = 낮은 의심도)를 설명해 주는 컬러 바 레전드를 표시합니다.
+
+#### 🎨 프론트엔드 시각화 UI 구현 예시 (Dark Mode Mockup)
+![프론트엔드 시각화 예시 이미지](../../media/6일차_frontend_ui_mockup.png)
+
+#### 💻 HTML/CSS 오버레이 구현 참고 코드
+```html
+<div class="xray-viewer">
+  <!-- 1. 원본 X-ray 이미지 -->
+  <img src="/media/X-ray/test_0080.png" class="base-image" alt="Original X-ray">
+  <!-- 2. AI Grad-CAM 히트맵 이미지 (투명도 조절 대상) -->
+  <img src="/media/heatmap/record_3.png" id="heatmap-layer" class="heatmap-image" alt="Grad-CAM Heatmap">
+</div>
+
+<!-- 3. Opacity 조절 슬라이더 및 토글 -->
+<div class="controls">
+  <label for="opacity-slider">Heatmap Opacity:</label>
+  <input type="range" id="opacity-slider" min="0" max="100" value="45">
+</div>
+
+<style>
+.xray-viewer {
+  position: relative;
+  width: 500px;
+  height: 500px;
+}
+.base-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.heatmap-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45; /* 슬라이더 값에 따라 JS로 실시간 조절 */
+  mix-blend-mode: screen; /* 히트맵 오버레이 퀄리티를 높이기 위한 블렌드 모드 */
+  pointer-events: none;
+}
+</style>
+
+<script>
+const slider = document.getElementById('opacity-slider');
+const heatmap = document.getElementById('heatmap-layer');
+
+slider.addEventListener('input', (e) => {
+  heatmap.style.opacity = e.target.value / 100;
+});
+</script>
+```
