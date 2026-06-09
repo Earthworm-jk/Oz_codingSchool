@@ -10,8 +10,8 @@
 
 | 연관 요구사항 | API 이름 | 메서드 | 엔드포인트 | 인증 필요 | 설명 |
 | :--- | :--- | :---: | :--- | :---: | :--- |
-| **[REQ-PNEU-001]** | [1. AI 폐렴 예측 실행 API](#1-ai-폐렴-예측-실행-api) | `POST` | `/api/v1/pneumonia/predict/{record_id}` | Y | 특정 진료 기록의 X-Ray 분석 및 DB 저장 |
-| **[REQ-PNEU-002]** | [2. AI 폐렴 예측 결과 조회 API](#2-ai-폐렴-예측-결과-조회-api) | `GET` | `/api/v1/pneumonia/results/{record_id}` | Y | 특정 진료 기록의 기존 분석 결과 단건 조회 |
+| **[REQ-PNEU-001]** | [1. AI 폐렴 예측 실행 API](#1-ai-폐렴-예측-실행-api) | `POST` | `/api/v1/medical-records/{record_id}/predict` | Y | 특정 진료 기록의 X-Ray 분석 및 DB 저장 |
+| **[REQ-PNEU-002]** | [2. AI 폐렴 예측 결과 조회 API](#2-ai-폐렴-예측-결과-조회-api) | `GET` | `/api/v1/medical-records/{record_id}/analyses` | Y | 특정 진료 기록의 기존 분석 결과 목록 조회 (배열) |
 | **[REQ-PNEU-003]** | [3. AI 폐렴 즉시 예측 API (업로드)](#3-ai-폐렴-즉시-예측-api-업로드) | `POST` | `/api/v1/pneumonia/predict/upload` | Y | 이미지 업로드 즉시 폐렴 분석 및 반환 (DB 저장 안 함) |
 
 ---
@@ -20,7 +20,7 @@
 
 ### 1.1 API 개요
 * **설명**: 특정 진료 기록 ID(`record_id`)에 등록된 X-Ray 이미지 파일을 로드하여 `SimpleCNN` 모델로 분석을 수행합니다. 분석된 폐렴 여부와 확신도(Confidence) 등의 결과는 `ai_analysis_results` 테이블에 저장하고 반환합니다.
-* **엔드포인트**: `/api/v1/pneumonia/predict/{record_id}`
+* **엔드포인트**: `/api/v1/medical-records/{record_id}/predict`
 * **메서드**: `POST`
 * **인증 필요**: Y (의료진/직원 사용자)
 
@@ -56,8 +56,8 @@
 ## 2. AI 폐렴 예측 결과 조회 API
 
 ### 2.1 API 개요
-* **설명**: 특정 진료 기록 ID(`record_id`)에 대해 이미 생성되어 있는 AI 분석 결과를 조회합니다.
-* **엔드포인트**: `/api/v1/pneumonia/results/{record_id}`
+* **설명**: 특정 진료 기록 ID(`record_id`)에 대해 이미 생성되어 있는 AI 분석 결과 목록을 배열 형태로 조회합니다. 분석 결과가 없을 경우 빈 배열(`[]`)을 반환합니다.
+* **엔드포인트**: `/api/v1/medical-records/{record_id}/analyses`
 * **메서드**: `GET`
 * **인증 필요**: Y (내부 사용자 전체)
 
@@ -71,21 +71,22 @@
 ### 2.3 응답(Response)
 * **성공 (200 OK)**:
 ```json
-{
-  "id": 1,
-  "record_id": 12,
-  "is_pneumonia": true,
-  "confidence": 98.45,
-  "heatmap_url": "/media/heatmap/record_12.png",
-  "ai_model": "SimpleCNN",
-  "created_at": "2026-06-08T16:50:00",
-  "updated_at": "2026-06-08T16:50:00"
-}
+[
+  {
+    "id": 1,
+    "record_id": 12,
+    "is_pneumonia": true,
+    "confidence": 98.45,
+    "heatmap_url": "/media/heatmap/record_12.png",
+    "ai_model": "SimpleCNN",
+    "created_at": "2026-06-08T16:50:00",
+    "updated_at": "2026-06-08T16:50:00"
+  }
+]
 ```
 
 * **실패 (404 Not Found)**:
   * `진료 기록 ID가 존재하지 않습니다.`
-  * `해당 진료 기록에 대한 AI 분석 결과가 존재하지 않습니다.`
 
 ---
 
