@@ -488,6 +488,53 @@ const pages = {
         document.getElementById('created-at').innerText = new Date(record.created_at).toLocaleString();
         document.getElementById('xray-img').src = record.xray_image_url;
         
+        // Setup heatmap and controls if analyses are present
+        const heatmapImg = document.getElementById('heatmap-img');
+        const heatmapControls = document.getElementById('heatmap-controls');
+        const opacitySlider = document.getElementById('opacity-slider');
+        const opacityValLabel = document.getElementById('opacity-val-label');
+        const overlayToggle = document.getElementById('overlay-toggle');
+
+        if (analyses.length > 0) {
+            // Get the latest analysis
+            const latestAnalysis = analyses[analyses.length - 1];
+            if (latestAnalysis.heatmap_url) {
+                heatmapImg.src = latestAnalysis.heatmap_url;
+                heatmapImg.style.display = 'block';
+                heatmapControls.style.display = 'block';
+                
+                // Opacity logic
+                const updateOpacity = () => {
+                    const opacityValue = opacitySlider.value;
+                    opacityValLabel.innerText = `${opacityValue}%`;
+                    if (overlayToggle.checked) {
+                        heatmapImg.style.opacity = opacityValue / 100;
+                    }
+                };
+
+                opacitySlider.oninput = updateOpacity;
+
+                // Toggle logic
+                overlayToggle.onchange = () => {
+                    if (overlayToggle.checked) {
+                        heatmapImg.style.display = 'block';
+                        heatmapImg.style.opacity = opacitySlider.value / 100;
+                    } else {
+                        heatmapImg.style.display = 'none';
+                    }
+                };
+
+                // Initialize values
+                updateOpacity();
+            } else {
+                if (heatmapImg) heatmapImg.style.display = 'none';
+                if (heatmapControls) heatmapControls.style.display = 'none';
+            }
+        } else {
+            if (heatmapImg) heatmapImg.style.display = 'none';
+            if (heatmapControls) heatmapControls.style.display = 'none';
+        }
+        
         document.getElementById('predict-btn').onclick = () => this.handlePredict(recordId);
         document.getElementById('back-to-patient-btn').onclick = () => navigate(`/patients/${record.patient_id}`);
         
