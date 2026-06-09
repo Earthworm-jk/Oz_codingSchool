@@ -1,13 +1,18 @@
 import os
 from pathlib import Path
 
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from starlette.staticfiles import StaticFiles
+# pyrefly: ignore [missing-import]
 from starlette.responses import FileResponse
 from app.apis.practice_apis import router as practice_router
+from app.apis.pneumonia_apis import router as pneumonia_router
 
 app = FastAPI()
 app.include_router(practice_router)
+app.include_router(pneumonia_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -41,6 +46,7 @@ async def catch_all(path: str):
         or path.startswith("static/")
         or path.startswith("media/")
     ):
+        # pyrefly: ignore [missing-import]
         from fastapi import HTTPException
 
         raise HTTPException(status_code=404)

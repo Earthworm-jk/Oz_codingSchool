@@ -24,3 +24,12 @@ envs/
 
 # Local database files
 *.db
+
+# Local user/docs files (not to be committed)
+docs/4일차_USER_API_설계.md
+docs/AI_user_api_인수인계_문서.md
+docs/api_명세서.md
+docs/user_요구사항_정의서.md
+
+# Media uploads and temp files
+media/
