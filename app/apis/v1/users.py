@@ -5,23 +5,39 @@ from app.core.security import get_password_hash
 from app.models.users import User
 from app.schemas.user import UserCreate, UserRead
 from app.core.db.databases import async_get_db as get_db# DB 세션 가져오기
-
+from app.utils.validators import validate_nationality_names, validate_password, validate_employee_number
 router = APIRouter()
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/users/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
-    # 1. 이메일 중복 확인
+    # 1. 국적 및 성명 검증 (함수 이름이 validate_nationality_names로 변경됨)
+    validate_nationality_names(
+        nationality=user_in.nationality,
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
+        middle_name=user_in.middle_name
+    )
+    
+    # 2. 비밀번호 검증
+    validate_password(user_in.password)
+    # 3. 사번 검증
+    validate_employee_number(user_in.employee_number)
+    # 4. 이메일 중복 확인
     result = await db.execute(select(User).filter(User.email == user_in.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
 
-    # 2. 비밀번호 해싱 및 사용자 데이터 생성
-    # Pydantic 스키마를 딕셔너리로 변환
+    # 5. 데이터 처리 및 이름 조합
     user_data = user_in.model_dump()
     raw_password = user_data.pop("password")
+    
+    # 이름 조합 (검증을 통과했으므로 안전하게 조합)
+    user_data["name"] = f"{user_in.last_name or ''}{user_in.first_name}"
+    
+    # 비밀번호 해싱
     user_data["hashed_password"] = get_password_hash(raw_password)
     
-    # 3. 모델 인스턴스 생성 및 DB 저장
+    # 6. DB 저장
     new_user = User(**user_data)
     db.add(new_user)
     await db.commit()

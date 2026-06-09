@@ -4,11 +4,10 @@ from typing import Optional
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    name: str = Field(..., max_length=20)
     first_name: str = Field(..., max_length=20)
     last_name: Optional[str] = Field(None, max_length=20)
     middle_name: Optional[str] = Field(None, max_length=20)
-    employee_number: str = Field(..., pattern=r"^\d{8}$")
+    employee_number: str
     phone_number: str
     nationality: str
     gender: str
