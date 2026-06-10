@@ -3,8 +3,10 @@ from typing import Optional
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 
+from app.core.config import settings
+
 # 1. 보안 설정
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY"  # 실제 운영 시에는 .env 파일에서 관리하세요!
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -19,7 +21,7 @@ def get_password_hash(password: str) -> str:
     if len(password) > 72:
         password = password[:72]
     return pwd_context.hash(password)
-  
+
 
 # 3. JWT 토큰 생성
 def create_access_token(data: dict) -> str:
