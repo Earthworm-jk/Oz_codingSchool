@@ -497,7 +497,7 @@ const pages = {
 
         if (analyses.length > 0) {
             // Get the latest analysis
-            const latestAnalysis = analyses[analyses.length - 1];
+            const latestAnalysis = analyses[0];
             if (latestAnalysis.heatmap_url) {
                 heatmapImg.src = latestAnalysis.heatmap_url;
                 heatmapImg.style.display = 'block';
@@ -538,14 +538,21 @@ const pages = {
         document.getElementById('predict-btn').onclick = () => this.handlePredict(recordId);
         document.getElementById('back-to-patient-btn').onclick = () => navigate(`/patients/${record.patient_id}`);
         
+        const compareBtn = document.getElementById('compare-btn');
         const analysisList = document.getElementById('analysis-list');
         if (analyses.length === 0) {
             analysisList.innerHTML = '<p>저장된 예측 결과가 없습니다.</p>';
+            if (compareBtn) compareBtn.style.display = 'none';
         } else {
+            if (compareBtn) {
+                compareBtn.style.display = 'block';
+                compareBtn.disabled = true;
+            }
             analysisList.innerHTML = `
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 50px; text-align: center;">선택</th>
                             <th>수행 일시</th>
                             <th>폐렴 여부</th>
                             <th>Confidence</th>
@@ -555,6 +562,9 @@ const pages = {
                     <tbody>
                         ${analyses.map(a => `
                             <tr class="${a.is_pneumonia ? 'result-positive' : 'result-negative'}">
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="compare-checkbox" data-id="${a.id}">
+                                </td>
                                 <td>${new Date(a.created_at).toLocaleString()}</td>
                                 <td><strong>${a.is_pneumonia ? 'Positive' : 'Negative'}</strong></td>
                                 <td>${a.confidence}%</td>
@@ -564,7 +574,176 @@ const pages = {
                     </tbody>
                 </table>
             `;
+
+            // Checkbox event binding for compare button
+            const checkboxes = document.querySelectorAll('.compare-checkbox');
+            const updateCompareButtonState = () => {
+                const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                compareBtn.disabled = checkedCount < 2;
+            };
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateCompareButtonState);
+            });
+
+            compareBtn.onclick = () => {
+                const selectedIds = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => parseInt(cb.dataset.id));
+                const selectedAnalyses = analyses.filter(a => selectedIds.includes(a.id));
+                this.openComparisonModal(selectedAnalyses, record.xray_image_url);
+            };
         }
+    },
+
+    openComparisonModal(selectedAnalyses, xrayImageUrl) {
+        const modal = document.getElementById('comparison-modal');
+        const closeBtn = document.getElementById('close-comparison-modal');
+        const selectA = document.getElementById('compare-select-a');
+        const selectB = document.getElementById('compare-select-b');
+        const imgXrayA = document.getElementById('compare-xray-a');
+        const imgXrayB = document.getElementById('compare-xray-b');
+        const imgHeatmapA = document.getElementById('compare-heatmap-a');
+        const imgHeatmapB = document.getElementById('compare-heatmap-b');
+        const opacitySlider = document.getElementById('compare-opacity-slider');
+        const opacityValLabel = document.getElementById('compare-opacity-val-label');
+        const container = document.getElementById('comparison-slider-container');
+        const handle = document.getElementById('compare-slider-handle');
+
+        // Set base X-ray image URLs
+        imgXrayA.src = xrayImageUrl;
+        imgXrayB.src = xrayImageUrl;
+
+        // Populate dropdown options
+        const optionsHtml = selectedAnalyses.map(a => {
+            const dateStr = new Date(a.created_at).toLocaleString();
+            const resultStr = a.is_pneumonia ? 'Positive' : 'Negative';
+            return `<option value="${a.id}">${dateStr} (${resultStr}, ${a.confidence}%)</option>`;
+        }).join('');
+
+        selectA.innerHTML = optionsHtml;
+        selectB.innerHTML = optionsHtml;
+
+        // Set initial dropdown selections:
+        // A는 가장 과거의 기록 (selectedAnalyses는 최신순 desc이므로, 가장 마지막 원소)
+        // B는 가장 최근의 기록 (첫 번째 원소)
+        if (selectedAnalyses.length > 0) {
+            selectA.value = selectedAnalyses[selectedAnalyses.length - 1].id;
+            selectB.value = selectedAnalyses[0].id;
+        }
+
+        // Helper function to update heatmap images based on selection
+        const updateHeatmaps = () => {
+            const idA = parseInt(selectA.value);
+            const idB = parseInt(selectB.value);
+            
+            const analysisA = selectedAnalyses.find(a => a.id === idA);
+            const analysisB = selectedAnalyses.find(a => a.id === idB);
+
+            if (analysisA && analysisA.heatmap_url) {
+                imgHeatmapA.src = analysisA.heatmap_url;
+                imgHeatmapA.style.display = 'block';
+            } else {
+                imgHeatmapA.style.display = 'none';
+            }
+
+            if (analysisB && analysisB.heatmap_url) {
+                imgHeatmapB.src = analysisB.heatmap_url;
+                imgHeatmapB.style.display = 'block';
+            } else {
+                imgHeatmapB.style.display = 'none';
+            }
+        };
+
+        // Bind dropdown change events
+        selectA.onchange = updateHeatmaps;
+        selectB.onchange = updateHeatmaps;
+
+        // Set initial heatmaps
+        updateHeatmaps();
+
+        // Opacity logic
+        const updateOpacity = () => {
+            const val = opacitySlider.value;
+            opacityValLabel.innerText = `${val}%`;
+            imgHeatmapA.style.opacity = val / 100;
+            imgHeatmapB.style.opacity = val / 100;
+        };
+        opacitySlider.oninput = updateOpacity;
+        updateOpacity(); // Initialize
+
+        // ----------------------------------------------------
+        // Swipe Slider drag interaction using CSS Variable
+        // ----------------------------------------------------
+        let isDragging = false;
+
+        // Set default pos
+        container.style.setProperty('--slider-pos', '50%');
+
+        const moveSlider = (clientX) => {
+            const rect = container.getBoundingClientRect();
+            let x = clientX - rect.left;
+            
+            // Boundary constraints
+            if (x < 0) x = 0;
+            if (x > rect.width) x = rect.width;
+            
+            const percent = (x / rect.width) * 100;
+            container.style.setProperty('--slider-pos', `${percent}%`);
+        };
+
+        // Desktop Mouse Events
+        const onMouseDown = (e) => {
+            isDragging = true;
+            moveSlider(e.clientX);
+            e.preventDefault();
+        };
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            moveSlider(e.clientX);
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        // Touch Events for Mobile
+        const onTouchStart = (e) => {
+            isDragging = true;
+            moveSlider(e.touches[0].clientX);
+        };
+
+        const onTouchMove = (e) => {
+            if (!isDragging) return;
+            moveSlider(e.touches[0].clientX);
+        };
+
+        // Bind events
+        handle.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+
+        handle.addEventListener('touchstart', onTouchStart);
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('touchend', onMouseUp);
+
+        // Show Modal
+        modal.classList.add('show');
+
+        // Cleanup and Close
+        const closeModal = () => {
+            modal.classList.remove('show');
+            // Remove window listeners to prevent memory leak
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            window.removeEventListener('touchend', onMouseUp);
+        };
+
+        closeBtn.onclick = closeModal;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
     },
 
     async renderMyPage() {

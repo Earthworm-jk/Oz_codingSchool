@@ -534,3 +534,180 @@ footer {
     color: #64748b;
     font-weight: 500;
 }
+
+/* ==========================================
+   경과 비교 모달 (Comparison Modal) & Swipe Slider
+   ========================================== */
+
+/* 1. 비교 모달 사이즈 조정 */
+.comparison-modal-content {
+    max-width: 800px;
+    width: 95%;
+    text-align: left;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.close-btn {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.15s;
+}
+
+.close-btn:hover {
+    color: #334155;
+}
+
+/* 2. 셀렉터 영역 */
+.comparison-selectors {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.selector-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.compare-select {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+
+/* 3. 슬라이더 뷰어 외곽 */
+.comparison-viewer-outer {
+    width: 100%;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    aspect-ratio: 1.33 / 1; /* 일반 X-Ray의 가로세로 비율 대응 */
+    max-height: 500px;
+    position: relative;
+}
+
+/* 4. 슬라이더 메인 컨테이너 */
+.comparison-slider-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* 5. 이미지 래퍼 및 이미지 */
+.slider-image-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.comparison-base {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.comparison-heatmap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    opacity: 0.45;
+}
+
+/* A는 배경으로 깔림 */
+.image-a-wrapper {
+    z-index: 1;
+}
+
+/* B는 위에 얹어지고 clip-path에 의해 오른쪽 영역만 보여짐 (디폴트는 50% 잘라냄) */
+.image-b-wrapper {
+    z-index: 2;
+    clip-path: inset(0 0 0 var(--slider-pos, 50%));
+}
+
+/* 6. 슬라이더 핸들 */
+.comparison-slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--slider-pos, 50%);
+    width: 4px;
+    background-color: #fff;
+    cursor: ew-resize;
+    z-index: 10;
+    transform: translateX(-50%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.handle-line {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.handle-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    background-color: #fff;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: ew-resize;
+    color: var(--primary-color);
+    font-size: 0.8rem;
+    font-weight: bold;
+    border: 2px solid var(--primary-color);
+}
+
+/* 7. 체크박스 및 테이블 스타일링 */
+.compare-checkbox {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+#compare-btn:disabled {
+    background-color: #cbd5e1;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.comparison-controls {
+    margin-top: 1rem;
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
