@@ -26,8 +26,16 @@ async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db))
     result = await db.execute(select(User).filter(User.email == user_in.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
+    # 5. 사번 중복 체크 (이 부분을 추가하시면 됩니다!)
+    existing_user_emp = await db.execute(select(User).filter(User.employee_number == user_in.employee_number))
+    if existing_user_emp.scalars().first():
+        raise HTTPException(status_code=400, detail="이미 등록된 사번입니다.")
+    # 3. 전화번호 중복 체크 (추가된 부분)
+    existing_user_phone = await db.execute(select(User).filter(User.phone_number == user_in.phone_number))
+    if existing_user_phone.scalars().first():
+        raise HTTPException(status_code=400, detail="이미 등록된 전화번호입니다.")
 
-    # 5. 데이터 처리 및 이름 조합
+    # 6. 데이터 처리 및 이름 조합
     user_data = user_in.model_dump()
     raw_password = user_data.pop("password")
     
@@ -37,7 +45,7 @@ async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db))
     # 비밀번호 해싱
     user_data["hashed_password"] = get_password_hash(raw_password)
     
-    # 6. DB 저장
+    # 7. DB 저장
     new_user = User(**user_data)
     db.add(new_user)
     await db.commit()
