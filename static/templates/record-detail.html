@@ -54,7 +54,10 @@
     
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h3>AI 폐렴 예측 결과</h3>
-        <button id="predict-btn">AI 예측 결과보기</button>
+        <div style="display: flex; gap: 0.5rem;">
+            <button id="compare-btn" class="secondary" disabled>경과 비교하기</button>
+            <button id="predict-btn">AI 예측 결과보기</button>
+        </div>
     </div>
     
     <div id="analysis-list">
@@ -62,4 +65,57 @@
     </div>
     
     <button id="back-to-patient-btn" class="secondary" style="margin-top: 1rem;">진료 목록으로</button>
+</div>
+
+<!-- Comparison Modal -->
+<div id="comparison-modal" class="modal">
+    <div class="modal-content comparison-modal-content">
+        <div class="modal-header">
+            <h3>AI 분석 경과 비교 관찰</h3>
+            <span class="close-btn" id="close-comparison-modal">&times;</span>
+        </div>
+        
+        <div class="comparison-selectors">
+            <div class="selector-group">
+                <label for="compare-select-a">왼쪽 영역 (검사 A):</label>
+                <select id="compare-select-a" class="compare-select"></select>
+            </div>
+            <div class="selector-group">
+                <label for="compare-select-b">오른쪽 영역 (검사 B):</label>
+                <select id="compare-select-b" class="compare-select"></select>
+            </div>
+        </div>
+
+        <div class="comparison-viewer-outer">
+            <div id="comparison-slider-container" class="comparison-slider-container">
+                <!-- Image A (Left side - Base) -->
+                <div class="slider-image-wrapper image-a-wrapper">
+                    <img id="compare-xray-a" src="" alt="X-Ray A" class="comparison-base">
+                    <img id="compare-heatmap-a" src="" alt="Heatmap A" class="comparison-heatmap">
+                </div>
+                
+                <!-- Image B (Right side - Overlay) -->
+                <div class="slider-image-wrapper image-b-wrapper">
+                    <img id="compare-xray-b" src="" alt="X-Ray B" class="comparison-base">
+                    <img id="compare-heatmap-b" src="" alt="Heatmap B" class="comparison-heatmap">
+                </div>
+                
+                <!-- Slider Handle -->
+                <div id="compare-slider-handle" class="comparison-slider-handle">
+                    <div class="handle-line"></div>
+                    <div class="handle-button">
+                        <span>&#10094;&#10095;</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-controls">
+            <div class="opacity-control-group">
+                <label for="compare-opacity-slider">히트맵 불투명도:</label>
+                <input type="range" id="compare-opacity-slider" class="opacity-slider" min="0" max="100" value="45">
+                <span id="compare-opacity-val-label" class="opacity-value">45%</span>
+            </div>
+        </div>
+    </div>
 </div>

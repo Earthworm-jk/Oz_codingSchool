@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 from contextlib import contextmanager
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
@@ -87,7 +88,7 @@ async def get_valid_xray_image(
     xray_result = await db.execute(
         select(XrayImage).where(XrayImage.record_id == record.id).order_by(XrayImage.id.desc())
     )
-    xray_image = xray_result.scalar_one_or_none()
+    xray_image = xray_result.scalars().first()
     if not xray_image:
         raise HTTPException(status_code=404, detail="진료 기록에 등록된 X-Ray 이미지가 없습니다.")
 
@@ -149,18 +150,16 @@ async def predict_pneumonia_by_record(
     prediction_result = safe_predict_pneumonia(str(physical_path))
 
     # 2. 결과 저장
-    existing_result_query = await db.execute(
-        select(AiAnalysisResult).where(AiAnalysisResult.record_id == record_id)
-    )
-    analysis_result = existing_result_query.scalar_one_or_none()
-
     is_pneumonia = prediction_result["prediction"] == "PNEUMONIA"
     confidence_val = Decimal(f"{prediction_result['confidence'] * 100:.2f}")
 
     # Heatmap 생성 및 저장 (Grad-CAM 렌더링)
     heatmap_dir = BASE_DIR / "media" / "heatmap"
     os.makedirs(heatmap_dir, exist_ok=True)
-    heatmap_path = heatmap_dir / f"record_{record_id}.png"
+    
+    unique_suffix = uuid.uuid4().hex[:8]
+    heatmap_filename = f"record_{record_id}_{unique_suffix}.png"
+    heatmap_path = heatmap_dir / heatmap_filename
     
     try:
         generate_heatmap(str(physical_path), str(heatmap_path))
@@ -170,22 +169,16 @@ async def predict_pneumonia_by_record(
             detail=f"히트맵 생성에 실패했습니다. (사유: {str(e)})"
         )
     
-    heatmap_url = f"/media/heatmap/record_{record_id}.png"
+    heatmap_url = f"/media/heatmap/{heatmap_filename}"
 
-    if analysis_result:
-        analysis_result.is_pneumonia = is_pneumonia
-        analysis_result.confidence = confidence_val
-        analysis_result.heatmap_url = heatmap_url
-        analysis_result.ai_model = "SimpleCNN"
-    else:
-        analysis_result = AiAnalysisResult(
-            record_id=record_id,
-            is_pneumonia=is_pneumonia,
-            confidence=confidence_val,
-            heatmap_url=heatmap_url,
-            ai_model="SimpleCNN"
-        )
-        db.add(analysis_result)
+    analysis_result = AiAnalysisResult(
+        record_id=record_id,
+        is_pneumonia=is_pneumonia,
+        confidence=confidence_val,
+        heatmap_url=heatmap_url,
+        ai_model="SimpleCNN"
+    )
+    db.add(analysis_result)
 
     await db.commit()
     await db.refresh(analysis_result)
@@ -203,7 +196,9 @@ async def get_pneumonia_result_by_record(
     db: AsyncSession = Depends(async_get_db)
 ):
     result_query = await db.execute(
-        select(AiAnalysisResult).where(AiAnalysisResult.record_id == record_id)
+        select(AiAnalysisResult)
+        .where(AiAnalysisResult.record_id == record_id)
+        .order_by(AiAnalysisResult.created_at.desc())
     )
     analysis_results = result_query.scalars().all()
     return analysis_results
