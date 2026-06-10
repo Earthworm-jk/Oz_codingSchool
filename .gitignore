@@ -32,4 +32,6 @@ docs/api_명세서.md
 docs/user_요구사항_정의서.md
 
 # Media uploads and temp files
-media/
+media/temp/
+media/heatmap/
+media/xray_images/
