@@ -1,0 +1,30 @@
+# Environment files
+.env
+.env.*
+*.env
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.venv/
+
+# Library cache
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.uv/
+
+# Docker files
+**/Dockerfile
+**/docker-compose.yml
+**/.dockerignore
+
+# Documentation and readme
+docs/
+README.md
+
+# IDE settings
+.vscode/
+.idea/
