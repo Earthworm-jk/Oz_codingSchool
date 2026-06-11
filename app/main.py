@@ -6,7 +6,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 from app.apis.practice_apis import router as practice_router
 
-from app.apis.v1 import users  # 이 부분을 추가하세요 (경로는 실제 파일 위치에 맞춰주세요)
+from app.apis.v1 import users, auth  # 이 부분을 추가하세요 (경로는 실제 파일 위치에 맞춰주세요)
 
 # ... 기존 코드 ...
 
@@ -17,7 +17,7 @@ app.include_router(practice_router)
 
 # 새로 만든 실전용 라우터 추가!
 app.include_router(users.router, prefix="/api/v1", tags=["User API"])
-
+app.include_router(auth.router, prefix="/api/v1/auth")
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 만약 static, media 폴더가 존재하지 않으면 생성
