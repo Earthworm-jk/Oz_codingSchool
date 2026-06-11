@@ -1,10 +1,18 @@
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from passlib.context import CryptContext
 from jose import jwt, JWTError
+from dotenv import load_dotenv
 
-# 1. 보안 설정
-SECRET_KEY = "YOUR_SUPER_SECRET_KEY"  # 실제 운영 시에는 .env 파일에서 관리하세요!
+# .env 파일 로드
+load_dotenv()
+
+# 환경변수에서 가져오기
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY가 .env 파일에 설정되지 않았습니다!")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
