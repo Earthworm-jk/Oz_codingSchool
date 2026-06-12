@@ -477,7 +477,7 @@ const pages = {
 
     async renderRecordDetail(recordId) {
         const record = await apis.getMedicalRecord(recordId);
-        const analyses = await apis.getMedicalRecordAnalyses(recordId);
+        const analyses = await apis.getPatientPneumoniaAnalyses(record.patient_id);
         const html = await utils.loadTemplate('record-detail');
         const app = document.getElementById('app');
         app.innerHTML = html;
@@ -488,36 +488,385 @@ const pages = {
         document.getElementById('created-at').innerText = new Date(record.created_at).toLocaleString();
         document.getElementById('xray-img').src = record.xray_image_url;
         
+        // Setup heatmap and controls if analyses are present for CURRENT record
+        const heatmapImg = document.getElementById('heatmap-img');
+        const heatmapControls = document.getElementById('heatmap-controls');
+        const opacitySlider = document.getElementById('opacity-slider');
+        const opacityValLabel = document.getElementById('opacity-val-label');
+        const overlayToggle = document.getElementById('overlay-toggle');
+
+        const currentAnalysis = analyses.find(a => a.record_id === record.id && a.id !== null);
+
+        if (currentAnalysis && currentAnalysis.heatmap_url) {
+            heatmapImg.src = currentAnalysis.heatmap_url;
+            heatmapImg.style.display = 'block';
+            heatmapControls.style.display = 'block';
+            
+            // Opacity logic
+            const updateOpacity = () => {
+                const opacityValue = opacitySlider.value;
+                opacityValLabel.innerText = `${opacityValue}%`;
+                if (overlayToggle.checked) {
+                    heatmapImg.style.opacity = opacityValue / 100;
+                }
+            };
+
+            opacitySlider.oninput = updateOpacity;
+
+            // Toggle logic
+            overlayToggle.onchange = () => {
+                if (overlayToggle.checked) {
+                    heatmapImg.style.display = 'block';
+                    heatmapImg.style.opacity = opacitySlider.value / 100;
+                } else {
+                    heatmapImg.style.display = 'none';
+                }
+            };
+
+            // Initialize values
+            updateOpacity();
+        } else {
+            if (heatmapImg) heatmapImg.style.display = 'none';
+            if (heatmapControls) heatmapControls.style.display = 'none';
+        }
+        
         document.getElementById('predict-btn').onclick = () => this.handlePredict(recordId);
         document.getElementById('back-to-patient-btn').onclick = () => navigate(`/patients/${record.patient_id}`);
         
+        const compareBtn = document.getElementById('compare-btn');
         const analysisList = document.getElementById('analysis-list');
         if (analyses.length === 0) {
             analysisList.innerHTML = '<p>저장된 예측 결과가 없습니다.</p>';
+            if (compareBtn) compareBtn.style.display = 'none';
         } else {
+            if (compareBtn) {
+                compareBtn.style.display = 'block';
+                compareBtn.disabled = true;
+            }
             analysisList.innerHTML = `
                 <table>
                     <thead>
                         <tr>
-                            <th>수행 일시</th>
+                            <th style="width: 50px; text-align: center;">선택</th>
+                            <th>진료 차트번호</th>
+                            <th>분석 수행일시</th>
                             <th>폐렴 여부</th>
                             <th>Confidence</th>
                             <th>사용 모델</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${analyses.map(a => `
-                            <tr class="${a.is_pneumonia ? 'result-positive' : 'result-negative'}">
-                                <td>${new Date(a.created_at).toLocaleString()}</td>
-                                <td><strong>${a.is_pneumonia ? 'Positive' : 'Negative'}</strong></td>
-                                <td>${a.confidence}%</td>
-                                <td>${a.ai_model}</td>
-                            </tr>
-                        `).join('')}
+                        ${analyses.map(a => {
+                            const hasAnalysis = a.id !== null;
+                            const trClass = hasAnalysis ? (a.is_pneumonia ? 'result-positive' : 'result-negative') : '';
+                            const confidenceText = hasAnalysis ? `${a.confidence}%` : '-';
+                            const modelText = hasAnalysis ? a.ai_model : '-';
+                            const resultText = hasAnalysis ? (a.is_pneumonia ? 'Positive' : 'Negative') : '미분석';
+                            const dateText = a.created_at ? new Date(a.created_at).toLocaleString() : '-';
+                            const dataId = hasAnalysis ? a.id : `record-${a.record_id}`;
+                            return `
+                                <tr class="${trClass}">
+                                    <td style="text-align: center;">
+                                        <input type="checkbox" class="compare-checkbox" data-id="${dataId}" data-record-id="${a.record_id}" data-has-analysis="${hasAnalysis}">
+                                    </td>
+                                    <td><strong>${a.chart_number || '-'}</strong></td>
+                                    <td>${dateText}</td>
+                                    <td><strong>${resultText}</strong></td>
+                                    <td>${confidenceText}</td>
+                                    <td>${modelText}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
+
+            // Checkbox event binding for compare button
+            const checkboxes = document.querySelectorAll('.compare-checkbox');
+            const updateCompareButtonState = () => {
+                const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                compareBtn.disabled = checkedCount < 2;
+            };
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateCompareButtonState);
+            });
+
+            compareBtn.onclick = () => {
+                const selectedAnalyses = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => {
+                        const hasAnalysis = cb.dataset.hasAnalysis === 'true';
+                        const recordId = parseInt(cb.dataset.recordId);
+                        if (hasAnalysis) {
+                            const id = parseInt(cb.dataset.id);
+                            return analyses.find(a => a.id === id);
+                        } else {
+                            return analyses.find(a => a.record_id === recordId && a.id === null);
+                        }
+                    })
+                    .filter(Boolean);
+                this.openComparisonModal(selectedAnalyses);
+            };
         }
+    },
+
+    openComparisonModal(selectedAnalyses) {
+        const modal = document.getElementById('comparison-modal');
+        const closeBtn = document.getElementById('close-comparison-modal');
+        const selectorsArea = document.querySelector('.comparison-selectors');
+        const modalContent = document.querySelector('.comparison-modal-content');
+        const selectA = document.getElementById('compare-select-a');
+        const selectB = document.getElementById('compare-select-b');
+        const opacitySlider = document.getElementById('compare-opacity-slider');
+        const opacityValLabel = document.getElementById('compare-opacity-val-label');
+        const container = document.getElementById('comparison-slider-container');
+        const modeCheckbox = document.getElementById('compare-mode-checkbox');
+        const viewerOuter = document.querySelector('.comparison-viewer-outer');
+
+        const N = selectedAnalyses.length;
+
+        // 1. Opacity logic
+        const updateOpacity = () => {
+            const val = opacitySlider.value;
+            opacityValLabel.innerText = `${val}%`;
+            
+            // 모든 동적/정적 히트맵의 opacity 일괄 반영
+            const heatmaps = container.querySelectorAll('.comparison-heatmap');
+            heatmaps.forEach(h => {
+                h.style.opacity = val / 100;
+            });
+        };
+        opacitySlider.oninput = updateOpacity;
+
+        // 2. Mode switch layout sync
+        const syncLayoutMode = () => {
+            if (N >= 3) {
+                if (modeCheckbox) {
+                    modeCheckbox.checked = true;
+                    modeCheckbox.disabled = true;
+                }
+                if (modalContent) {
+                    modalContent.style.setProperty('max-width', '1600px', 'important');
+                    modalContent.style.setProperty('width', '95%', 'important');
+                }
+                viewerOuter.classList.add('side-by-side');
+                viewerOuter.style.aspectRatio = `${N * 1.33} / 1`;
+                viewerOuter.style.setProperty('max-height', '85vh', 'important');
+            } else {
+                if (modeCheckbox) {
+                    modeCheckbox.disabled = false;
+                    if (modeCheckbox.checked) {
+                        if (modalContent) {
+                            modalContent.style.setProperty('max-width', '1600px', 'important');
+                            modalContent.style.setProperty('width', '95%', 'important');
+                        }
+                        viewerOuter.classList.add('side-by-side');
+                        viewerOuter.style.aspectRatio = '2.66 / 1';
+                        viewerOuter.style.setProperty('max-height', '85vh', 'important');
+                    } else {
+                        if (modalContent) {
+                            modalContent.style.setProperty('max-width', '800px', 'important');
+                            modalContent.style.setProperty('width', '95%', 'important');
+                        }
+                        viewerOuter.classList.remove('side-by-side');
+                        viewerOuter.style.aspectRatio = '1.33 / 1';
+                        viewerOuter.style.setProperty('max-height', '500px', 'important');
+                    }
+                }
+            }
+        };
+
+        const updateTwoViewer = (idxA, idxB) => {
+            const analysisA = selectedAnalyses[idxA];
+            const analysisB = selectedAnalyses[idxB];
+
+            const imgXrayA = document.getElementById('compare-xray-a');
+            const imgHeatmapA = document.getElementById('compare-heatmap-a');
+            const imgXrayB = document.getElementById('compare-xray-b');
+            const imgHeatmapB = document.getElementById('compare-heatmap-b');
+
+            if (analysisA && imgXrayA && imgHeatmapA) {
+                imgXrayA.src = analysisA.xray_image_url || '';
+                if (analysisA.heatmap_url) {
+                    imgHeatmapA.src = analysisA.heatmap_url;
+                    imgHeatmapA.style.display = 'block';
+                } else {
+                    imgHeatmapA.style.display = 'none';
+                }
+            }
+
+            if (analysisB && imgXrayB && imgHeatmapB) {
+                imgXrayB.src = analysisB.xray_image_url || '';
+                if (analysisB.heatmap_url) {
+                    imgHeatmapB.src = analysisB.heatmap_url;
+                    imgHeatmapB.style.display = 'block';
+                } else {
+                    imgHeatmapB.style.display = 'none';
+                }
+            }
+            updateOpacity();
+        };
+
+        if (modeCheckbox) {
+            modeCheckbox.onchange = () => {
+                syncLayoutMode();
+                if (N === 2) {
+                    const idxA = parseInt(selectA.value);
+                    const idxB = parseInt(selectB.value);
+                    updateTwoViewer(idxA, idxB);
+                }
+            };
+        }
+
+        // ----------------------------------------------------
+        // Swipe Slider drag interaction using CSS Variable
+        // ----------------------------------------------------
+        let isDragging = false;
+
+        const moveSlider = (clientX) => {
+            if (modeCheckbox && modeCheckbox.checked) return; // side-by-side 모드이면 드래그 무시
+            const rect = container.getBoundingClientRect();
+            let x = clientX - rect.left;
+            
+            // Boundary constraints
+            if (x < 0) x = 0;
+            if (x > rect.width) x = rect.width;
+            
+            const percent = (x / rect.width) * 100;
+            container.style.setProperty('--slider-pos', `${percent}%`);
+        };
+
+        // Desktop Mouse Events
+        const onMouseDown = (e) => {
+            isDragging = true;
+            moveSlider(e.clientX);
+            e.preventDefault();
+        };
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            moveSlider(e.clientX);
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        // Touch Events for Mobile
+        const onTouchStart = (e) => {
+            isDragging = true;
+            moveSlider(e.touches[0].clientX);
+        };
+
+        const onTouchMove = (e) => {
+            if (!isDragging) return;
+            moveSlider(e.touches[0].clientX);
+        };
+
+        // 3. Render contents based on selection count
+        if (N >= 3) {
+            if (selectorsArea) selectorsArea.style.display = 'none'; // 드롭다운 숨김
+            
+            container.innerHTML = selectedAnalyses.map((a, idx) => `
+                <div class="slider-image-wrapper" style="position: absolute; top: 0; left: ${(idx * 100) / N}%; width: ${100 / N}%; height: 100%; border-right: ${idx < N - 1 ? '2px solid #fff' : 'none'}; box-sizing: border-box;">
+                    <img src="${a.xray_image_url || ''}" alt="X-Ray ${idx}" class="comparison-base">
+                    ${a.heatmap_url ? `<img src="${a.heatmap_url}" alt="Heatmap ${idx}" class="comparison-heatmap" style="display: block;">` : ''}
+                    <div class="image-label" style="position: absolute; top: 12px; left: 12px; background: rgba(15, 23, 42, 0.75); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.15);">
+                        ${a.chart_number || '미분석'} (${a.created_at ? new Date(a.created_at).toLocaleDateString() : '미분석'})
+                    </div>
+                </div>
+            `).join('');
+            
+            syncLayoutMode();
+            updateOpacity();
+        } else {
+            if (selectorsArea) selectorsArea.style.display = 'flex';
+            
+            container.innerHTML = `
+                <!-- Image A (Left side - Base) -->
+                <div class="slider-image-wrapper image-a-wrapper">
+                    <img id="compare-xray-a" src="" alt="X-Ray A" class="comparison-base">
+                    <img id="compare-heatmap-a" src="" alt="Heatmap A" class="comparison-heatmap">
+                </div>
+                
+                <!-- Image B (Right side - Overlay) -->
+                <div class="slider-image-wrapper image-b-wrapper">
+                    <img id="compare-xray-b" src="" alt="X-Ray B" class="comparison-base">
+                    <img id="compare-heatmap-b" src="" alt="Heatmap B" class="comparison-heatmap">
+                </div>
+                
+                <!-- Slider Handle -->
+                <div id="compare-slider-handle" class="comparison-slider-handle">
+                    <div class="handle-line"></div>
+                    <div class="handle-button">
+                        <span>&#10094;&#10095;</span>
+                    </div>
+                </div>
+            `;
+
+            // Set default pos
+            container.style.setProperty('--slider-pos', '50%');
+
+            const handle = document.getElementById('compare-slider-handle');
+            if (handle) {
+                handle.addEventListener('mousedown', onMouseDown);
+                handle.addEventListener('touchstart', onTouchStart);
+            }
+
+            // Populate dropdown options (using array index as value for mapping)
+            const optionsHtml = selectedAnalyses.map((a, idx) => {
+                const dateStr = a.created_at ? new Date(a.created_at).toLocaleString() : '미분석';
+                const hasAnalysis = a.id !== null;
+                const resultStr = hasAnalysis ? (a.is_pneumonia ? 'Positive' : 'Negative') : '미분석';
+                const confidenceStr = hasAnalysis ? `, ${a.confidence}%` : '';
+                const chartStr = a.chart_number ? ` (차트: ${a.chart_number})` : '';
+                return `<option value="${idx}">${dateStr} (${resultStr}${confidenceStr})${chartStr}</option>`;
+            }).join('');
+
+            selectA.innerHTML = optionsHtml;
+            selectB.innerHTML = optionsHtml;
+
+            // Set initial dropdown selections:
+            if (selectedAnalyses.length > 0) {
+                selectA.value = selectedAnalyses.length - 1;
+                selectB.value = 0;
+            }
+
+            const updateViewer = () => {
+                const idxA = parseInt(selectA.value);
+                const idxB = parseInt(selectB.value);
+                updateTwoViewer(idxA, idxB);
+            };
+
+            selectA.onchange = updateViewer;
+            selectB.onchange = updateViewer;
+
+            syncLayoutMode();
+            updateViewer();
+        }
+
+        // Bind global window events for dragging
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('touchend', onMouseUp);
+
+        // Show Modal
+        modal.classList.add('show');
+
+        // Cleanup and Close
+        const closeModal = () => {
+            modal.classList.remove('show');
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            window.removeEventListener('touchend', onMouseUp);
+        };
+
+        closeBtn.onclick = closeModal;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
     },
 
     async renderMyPage() {
