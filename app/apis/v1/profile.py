@@ -13,7 +13,7 @@ class PasswordVerifyRequest(BaseModel):
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
-@router.post("/me/secure")
+@router.post("/me/secure", summary="민감 정보 조회(비밀번호입력 필요)")
 async def get_secure_info(data: PasswordVerifyRequest, current_user: User = Depends(get_current_user)):
     # 비밀번호 검증
     if not verify_password(data.password, current_user.hashed_password):

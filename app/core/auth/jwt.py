@@ -8,6 +8,11 @@ from app.core.db.databases import async_get_db
 from app.models.users import User 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
+from app.core.security import (
+    verify_password, 
+    create_access_token, 
+    create_refresh_token
+)
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -17,12 +22,6 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 
 oauth2_scheme = HTTPBearer()
-
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def get_current_user(
     token: HTTPAuthorizationCredentials = Depends(oauth2_scheme),

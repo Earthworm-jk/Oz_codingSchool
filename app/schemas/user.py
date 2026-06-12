@@ -39,3 +39,8 @@ class UserRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    department: Optional[DepartmentEnum] = None
+    phone_number: Optional[str] = None
+  

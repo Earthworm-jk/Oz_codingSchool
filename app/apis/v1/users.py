@@ -8,7 +8,7 @@ from app.core.db.databases import async_get_db as get_db# DB 세션 가져오기
 from app.utils.validators import validate_nationality_names, validate_password, validate_employee_number
 router = APIRouter()
 
-@router.post("/users/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/users/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED,summary="사용자 회원가입")
 async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     # 1. 국적 및 성명 검증 (함수 이름이 validate_nationality_names로 변경됨)
     validate_nationality_names(
@@ -46,9 +46,13 @@ async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db))
     user_data["hashed_password"] = get_password_hash(raw_password)
     
     # 7. DB 저장
-    new_user = User(**user_data)
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+    try:
+        new_user = User(**user_data)
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+    except Exception as e:
+        await db.rollback() # 에러 발생 시 롤백
+        raise HTTPException(status_code=500, detail="회원가입 처리 중 데이터베이스 오류가 발생했습니다.")
     
     return new_user
