@@ -316,6 +316,13 @@ const apis = {
         return await this.request(`/medical-records/${recordId}/analyses`);
     },
 
+    /**
+     * 환자별 AI 예측 결과 목록 조회
+     */
+    async getPatientPneumoniaAnalyses(patientId) {
+        return await this.request(`/patients/${patientId}/pneumonia/analyses`);
+    },
+
     // --- Admin ---
 
     /**

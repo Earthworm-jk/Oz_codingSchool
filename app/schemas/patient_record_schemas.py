@@ -115,5 +115,7 @@ class AiAnalysisResultResponse(BaseModel):
     confidence: Decimal
     heatmap_url: str
     ai_model: str
+    xray_image_url: str | None = None
+    chart_number: str | None = None
     created_at: datetime
     updated_at: datetime | None = None

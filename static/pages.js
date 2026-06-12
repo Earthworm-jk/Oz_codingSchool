@@ -477,7 +477,7 @@ const pages = {
 
     async renderRecordDetail(recordId) {
         const record = await apis.getMedicalRecord(recordId);
-        const analyses = await apis.getMedicalRecordAnalyses(recordId);
+        const analyses = await apis.getPatientPneumoniaAnalyses(record.patient_id);
         const html = await utils.loadTemplate('record-detail');
         const app = document.getElementById('app');
         app.innerHTML = html;
@@ -553,7 +553,8 @@ const pages = {
                     <thead>
                         <tr>
                             <th style="width: 50px; text-align: center;">선택</th>
-                            <th>수행 일시</th>
+                            <th>진료 차트번호</th>
+                            <th>분석 수행일시</th>
                             <th>폐렴 여부</th>
                             <th>Confidence</th>
                             <th>사용 모델</th>
@@ -565,6 +566,7 @@ const pages = {
                                 <td style="text-align: center;">
                                     <input type="checkbox" class="compare-checkbox" data-id="${a.id}">
                                 </td>
+                                <td><strong>${a.chart_number || '-'}</strong></td>
                                 <td>${new Date(a.created_at).toLocaleString()}</td>
                                 <td><strong>${a.is_pneumonia ? 'Positive' : 'Negative'}</strong></td>
                                 <td>${a.confidence}%</td>
@@ -591,12 +593,12 @@ const pages = {
                     .filter(cb => cb.checked)
                     .map(cb => parseInt(cb.dataset.id));
                 const selectedAnalyses = analyses.filter(a => selectedIds.includes(a.id));
-                this.openComparisonModal(selectedAnalyses, record.xray_image_url);
+                this.openComparisonModal(selectedAnalyses);
             };
         }
     },
 
-    openComparisonModal(selectedAnalyses, xrayImageUrl) {
+    openComparisonModal(selectedAnalyses) {
         const modal = document.getElementById('comparison-modal');
         const closeBtn = document.getElementById('close-comparison-modal');
         const selectA = document.getElementById('compare-select-a');
@@ -610,57 +612,58 @@ const pages = {
         const container = document.getElementById('comparison-slider-container');
         const handle = document.getElementById('compare-slider-handle');
 
-        // Set base X-ray image URLs
-        imgXrayA.src = xrayImageUrl;
-        imgXrayB.src = xrayImageUrl;
-
         // Populate dropdown options
         const optionsHtml = selectedAnalyses.map(a => {
             const dateStr = new Date(a.created_at).toLocaleString();
             const resultStr = a.is_pneumonia ? 'Positive' : 'Negative';
-            return `<option value="${a.id}">${dateStr} (${resultStr}, ${a.confidence}%)</option>`;
+            const chartStr = a.chart_number ? ` (차트: ${a.chart_number})` : '';
+            return `<option value="${a.id}">${dateStr} (${resultStr}, ${a.confidence}%)${chartStr}</option>`;
         }).join('');
 
         selectA.innerHTML = optionsHtml;
         selectB.innerHTML = optionsHtml;
 
         // Set initial dropdown selections:
-        // A는 가장 과거의 기록 (selectedAnalyses는 최신순 desc이므로, 가장 마지막 원소)
-        // B는 가장 최근의 기록 (첫 번째 원소)
         if (selectedAnalyses.length > 0) {
             selectA.value = selectedAnalyses[selectedAnalyses.length - 1].id;
             selectB.value = selectedAnalyses[0].id;
         }
 
-        // Helper function to update heatmap images based on selection
-        const updateHeatmaps = () => {
+        // Helper function to update xray images and heatmap images based on selection
+        const updateViewer = () => {
             const idA = parseInt(selectA.value);
             const idB = parseInt(selectB.value);
             
             const analysisA = selectedAnalyses.find(a => a.id === idA);
             const analysisB = selectedAnalyses.find(a => a.id === idB);
 
-            if (analysisA && analysisA.heatmap_url) {
-                imgHeatmapA.src = analysisA.heatmap_url;
-                imgHeatmapA.style.display = 'block';
-            } else {
-                imgHeatmapA.style.display = 'none';
+            if (analysisA) {
+                imgXrayA.src = analysisA.xray_image_url || '';
+                if (analysisA.heatmap_url) {
+                    imgHeatmapA.src = analysisA.heatmap_url;
+                    imgHeatmapA.style.display = 'block';
+                } else {
+                    imgHeatmapA.style.display = 'none';
+                }
             }
 
-            if (analysisB && analysisB.heatmap_url) {
-                imgHeatmapB.src = analysisB.heatmap_url;
-                imgHeatmapB.style.display = 'block';
-            } else {
-                imgHeatmapB.style.display = 'none';
+            if (analysisB) {
+                imgXrayB.src = analysisB.xray_image_url || '';
+                if (analysisB.heatmap_url) {
+                    imgHeatmapB.src = analysisB.heatmap_url;
+                    imgHeatmapB.style.display = 'block';
+                } else {
+                    imgHeatmapB.style.display = 'none';
+                }
             }
         };
 
         // Bind dropdown change events
-        selectA.onchange = updateHeatmaps;
-        selectB.onchange = updateHeatmaps;
+        selectA.onchange = updateViewer;
+        selectB.onchange = updateViewer;
 
-        // Set initial heatmaps
-        updateHeatmaps();
+        // Set initial viewer state
+        updateViewer();
 
         // Opacity logic
         const updateOpacity = () => {

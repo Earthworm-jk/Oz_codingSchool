@@ -17,6 +17,7 @@ from app.schemas.pneumonia_schemas import PneumoniaPredictionResponse
 from app.schemas.patient_record_schemas import AiAnalysisResultResponse
 from app.core.auth.jwt import get_current_user
 from app.models.users import User
+from app.models.patients import Patient
 from worker.model import predict_pneumonia, generate_heatmap
 
 router = APIRouter(prefix="/api/v1", tags=["AI Pneumonia Prediction"])
@@ -155,6 +156,12 @@ async def execute_pneumonia_prediction(
 
     await db.commit()
     await db.refresh(analysis_result)
+
+    # Pydantic schema validation 시 매핑을 위한 임시 속성 주입
+    analysis_result.xray_image_url = xray_image.image_url
+    record_result = await db.execute(select(MedicalRecord.chart_number).where(MedicalRecord.id == record_id))
+    analysis_result.chart_number = record_result.scalar()
+
     return analysis_result
 
 
@@ -248,10 +255,63 @@ async def get_pneumonia_result_by_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
+    from sqlalchemy.orm import joinedload
     result_query = await db.execute(
         select(AiAnalysisResult)
         .where(AiAnalysisResult.record_id == record_id)
+        .options(
+            joinedload(AiAnalysisResult.medical_record)
+            .joinedload(MedicalRecord.xray_images)
+        )
         .order_by(AiAnalysisResult.created_at.desc())
     )
     analysis_results = result_query.scalars().all()
+    
+    for a in analysis_results:
+        xray_url = None
+        if a.medical_record.xray_images:
+            xray_url = a.medical_record.xray_images[0].image_url
+        a.xray_image_url = xray_url
+        a.chart_number = a.medical_record.chart_number
+        
+    return analysis_results
+
+
+@router.get(
+    "/patients/{patient_id}/pneumonia/analyses",
+    summary="환자별 전체 AI 폐렴 예측 결과 목록 조회 API",
+    response_model=list[AiAnalysisResultResponse]
+)
+async def get_pneumonia_results_by_patient(
+    patient_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db)
+):
+    # 1. 환자 존재 여부 확인
+    patient = await db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="존재하지 않는 환자입니다.")
+
+    # 2. 환자의 전체 진료 기록에 딸린 분석 결과 조회
+    from sqlalchemy.orm import joinedload
+    result_query = await db.execute(
+        select(AiAnalysisResult)
+        .join(MedicalRecord, AiAnalysisResult.record_id == MedicalRecord.id)
+        .where(MedicalRecord.patient_id == patient_id)
+        .options(
+            joinedload(AiAnalysisResult.medical_record)
+            .joinedload(MedicalRecord.xray_images)
+        )
+        .order_by(AiAnalysisResult.created_at.desc())
+    )
+    analysis_results = result_query.scalars().all()
+
+    # 3. 각 분석 결과에 xray_image_url과 chart_number 바인딩
+    for a in analysis_results:
+        xray_url = None
+        if a.medical_record.xray_images:
+            xray_url = a.medical_record.xray_images[0].image_url
+        a.xray_image_url = xray_url
+        a.chart_number = a.medical_record.chart_number
+
     return analysis_results
