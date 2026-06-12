@@ -4,7 +4,7 @@ import tempfile
 import uuid
 from pathlib import Path
 from contextlib import contextmanager
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from decimal import Decimal
@@ -82,9 +82,9 @@ async def get_valid_medical_record(
     return record
 
 
-async def get_valid_xray_image(
-    record: MedicalRecord = Depends(get_valid_medical_record),
-    db: AsyncSession = Depends(async_get_db)
+async def get_valid_xray_image_from_record(
+    record: MedicalRecord,
+    db: AsyncSession
 ) -> XrayImage:
     xray_result = await db.execute(
         select(XrayImage).where(XrayImage.record_id == record.id).order_by(XrayImage.id.desc())
@@ -101,6 +101,59 @@ async def get_valid_xray_image(
         raise HTTPException(status_code=404, detail=f"X-Ray 이미지 파일이 서버에 존재하지 않습니다. (경로: {relative_path})")
 
     return xray_image
+
+
+async def get_valid_xray_image(
+    record: MedicalRecord = Depends(get_valid_medical_record),
+    db: AsyncSession = Depends(async_get_db)
+) -> XrayImage:
+    return await get_valid_xray_image_from_record(record, db)
+
+
+async def execute_pneumonia_prediction(
+    record_id: int,
+    xray_image: XrayImage,
+    db: AsyncSession
+) -> AiAnalysisResult:
+    physical_path = BASE_DIR / xray_image.image_url.lstrip("/")
+
+    # 1. 모델 예측 수행
+    prediction_result = safe_predict_pneumonia(str(physical_path))
+
+    # 2. 결과 저장
+    is_pneumonia = prediction_result["prediction"] == "PNEUMONIA"
+    confidence_val = Decimal(f"{prediction_result['confidence'] * 100:.2f}")
+
+    # Heatmap 생성 및 저장 (Grad-CAM 렌더링)
+    heatmap_dir = BASE_DIR / "media" / "heatmap"
+    os.makedirs(heatmap_dir, exist_ok=True)
+    
+    unique_suffix = uuid.uuid4().hex[:8]
+    heatmap_filename = f"record_{record_id}_{unique_suffix}.png"
+    heatmap_path = heatmap_dir / heatmap_filename
+    
+    try:
+        generate_heatmap(str(physical_path), str(heatmap_path))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"히트맵 생성에 실패했습니다. (사유: {str(e)})"
+        )
+    
+    heatmap_url = f"/media/heatmap/{heatmap_filename}"
+
+    analysis_result = AiAnalysisResult(
+        record_id=record_id,
+        is_pneumonia=is_pneumonia,
+        confidence=confidence_val,
+        heatmap_url=heatmap_url,
+        ai_model="SimpleCNN"
+    )
+    db.add(analysis_result)
+
+    await db.commit()
+    await db.refresh(analysis_result)
+    return analysis_result
 
 
 # ==========================================
@@ -145,45 +198,38 @@ async def predict_pneumonia_by_record(
     xray_image: XrayImage = Depends(get_valid_xray_image),
     db: AsyncSession = Depends(async_get_db)
 ):
-    physical_path = BASE_DIR / xray_image.image_url.lstrip("/")
+    return await execute_pneumonia_prediction(record_id, xray_image, db)
 
-    # 1. 모델 예측 수행
-    prediction_result = safe_predict_pneumonia(str(physical_path))
 
-    # 2. 결과 저장
-    is_pneumonia = prediction_result["prediction"] == "PNEUMONIA"
-    confidence_val = Decimal(f"{prediction_result['confidence'] * 100:.2f}")
-
-    # Heatmap 생성 및 저장 (Grad-CAM 렌더링)
-    heatmap_dir = BASE_DIR / "media" / "heatmap"
-    os.makedirs(heatmap_dir, exist_ok=True)
+@router.post(
+    "/pneumonia/predict",
+    summary="AI 폐렴 예측 실행 API (ID 또는 Patient ID 기반)",
+    response_model=AiAnalysisResultResponse
+)
+async def predict_pneumonia_api(
+    record_id: int | None = Query(None, description="진료 기록 ID"),
+    patient_id: int | None = Query(None, description="환자 ID"),
+    db: AsyncSession = Depends(async_get_db)
+):
+    if record_id is None and patient_id is None:
+        raise HTTPException(status_code=400, detail="record_id 또는 patient_id 중 하나는 필수입니다.")
     
-    unique_suffix = uuid.uuid4().hex[:8]
-    heatmap_filename = f"record_{record_id}_{unique_suffix}.png"
-    heatmap_path = heatmap_dir / heatmap_filename
-    
-    try:
-        generate_heatmap(str(physical_path), str(heatmap_path))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"히트맵 생성에 실패했습니다. (사유: {str(e)})"
+    if record_id is not None:
+        record = await get_valid_medical_record(record_id, db)
+    else:
+        # patient_id 기반으로 가장 최근의 진료 기록을 조회
+        record_result = await db.execute(
+            select(MedicalRecord)
+            .where(MedicalRecord.patient_id == patient_id)
+            .order_by(MedicalRecord.id.desc())
+            .limit(1)
         )
+        record = record_result.scalar_one_or_none()
+        if not record:
+            raise HTTPException(status_code=404, detail="해당 환자의 진료 기록이 존재하지 않습니다.")
     
-    heatmap_url = f"/media/heatmap/{heatmap_filename}"
-
-    analysis_result = AiAnalysisResult(
-        record_id=record_id,
-        is_pneumonia=is_pneumonia,
-        confidence=confidence_val,
-        heatmap_url=heatmap_url,
-        ai_model="SimpleCNN"
-    )
-    db.add(analysis_result)
-
-    await db.commit()
-    await db.refresh(analysis_result)
-    return analysis_result
+    xray_image = await get_valid_xray_image_from_record(record, db)
+    return await execute_pneumonia_prediction(record.id, xray_image, db)
 
 
 @router.get(
