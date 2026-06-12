@@ -614,45 +614,63 @@ const pages = {
     openComparisonModal(selectedAnalyses) {
         const modal = document.getElementById('comparison-modal');
         const closeBtn = document.getElementById('close-comparison-modal');
+        const selectorsArea = document.querySelector('.comparison-selectors');
         const selectA = document.getElementById('compare-select-a');
         const selectB = document.getElementById('compare-select-b');
-        const imgXrayA = document.getElementById('compare-xray-a');
-        const imgXrayB = document.getElementById('compare-xray-b');
-        const imgHeatmapA = document.getElementById('compare-heatmap-a');
-        const imgHeatmapB = document.getElementById('compare-heatmap-b');
         const opacitySlider = document.getElementById('compare-opacity-slider');
         const opacityValLabel = document.getElementById('compare-opacity-val-label');
         const container = document.getElementById('comparison-slider-container');
-        const handle = document.getElementById('compare-slider-handle');
+        const modeCheckbox = document.getElementById('compare-mode-checkbox');
+        const viewerOuter = document.querySelector('.comparison-viewer-outer');
 
-        // Populate dropdown options (using array index as value for mapping)
-        const optionsHtml = selectedAnalyses.map((a, idx) => {
-            const dateStr = a.created_at ? new Date(a.created_at).toLocaleString() : '미분석';
-            const hasAnalysis = a.id !== null;
-            const resultStr = hasAnalysis ? (a.is_pneumonia ? 'Positive' : 'Negative') : '미분석';
-            const confidenceStr = hasAnalysis ? `, ${a.confidence}%` : '';
-            const chartStr = a.chart_number ? ` (차트: ${a.chart_number})` : '';
-            return `<option value="${idx}">${dateStr} (${resultStr}${confidenceStr})${chartStr}</option>`;
-        }).join('');
+        const N = selectedAnalyses.length;
 
-        selectA.innerHTML = optionsHtml;
-        selectB.innerHTML = optionsHtml;
-
-        // Set initial dropdown selections:
-        if (selectedAnalyses.length > 0) {
-            selectA.value = selectedAnalyses.length - 1;
-            selectB.value = 0;
-        }
-
-        // Helper function to update xray images and heatmap images based on selection
-        const updateViewer = () => {
-            const idxA = parseInt(selectA.value);
-            const idxB = parseInt(selectB.value);
+        // 1. Opacity logic
+        const updateOpacity = () => {
+            const val = opacitySlider.value;
+            opacityValLabel.innerText = `${val}%`;
             
+            // 모든 동적/정적 히트맵의 opacity 일괄 반영
+            const heatmaps = container.querySelectorAll('.comparison-heatmap');
+            heatmaps.forEach(h => {
+                h.style.opacity = val / 100;
+            });
+        };
+        opacitySlider.oninput = updateOpacity;
+
+        // 2. Mode switch layout sync
+        const syncLayoutMode = () => {
+            if (N >= 3) {
+                if (modeCheckbox) {
+                    modeCheckbox.checked = true;
+                    modeCheckbox.disabled = true;
+                }
+                viewerOuter.classList.add('side-by-side');
+                viewerOuter.style.aspect-ratio = `${N * 1.33} / 1`;
+            } else {
+                if (modeCheckbox) {
+                    modeCheckbox.disabled = false;
+                    if (modeCheckbox.checked) {
+                        viewerOuter.classList.add('side-by-side');
+                        viewerOuter.style.aspect-ratio = '2.66 / 1';
+                    } else {
+                        viewerOuter.classList.remove('side-by-side');
+                        viewerOuter.style.aspect-ratio = '1.33 / 1';
+                    }
+                }
+            }
+        };
+
+        const updateTwoViewer = (idxA, idxB) => {
             const analysisA = selectedAnalyses[idxA];
             const analysisB = selectedAnalyses[idxB];
 
-            if (analysisA) {
+            const imgXrayA = document.getElementById('compare-xray-a');
+            const imgHeatmapA = document.getElementById('compare-heatmap-a');
+            const imgXrayB = document.getElementById('compare-xray-b');
+            const imgHeatmapB = document.getElementById('compare-heatmap-b');
+
+            if (analysisA && imgXrayA && imgHeatmapA) {
                 imgXrayA.src = analysisA.xray_image_url || '';
                 if (analysisA.heatmap_url) {
                     imgHeatmapA.src = analysisA.heatmap_url;
@@ -662,7 +680,7 @@ const pages = {
                 }
             }
 
-            if (analysisB) {
+            if (analysisB && imgXrayB && imgHeatmapB) {
                 imgXrayB.src = analysisB.xray_image_url || '';
                 if (analysisB.heatmap_url) {
                     imgHeatmapB.src = analysisB.heatmap_url;
@@ -671,34 +689,16 @@ const pages = {
                     imgHeatmapB.style.display = 'none';
                 }
             }
+            updateOpacity();
         };
 
-        // Bind dropdown change events
-        selectA.onchange = updateViewer;
-        selectB.onchange = updateViewer;
-
-        // Set initial viewer state
-        updateViewer();
-
-        // Opacity logic
-        const updateOpacity = () => {
-            const val = opacitySlider.value;
-            opacityValLabel.innerText = `${val}%`;
-            imgHeatmapA.style.opacity = val / 100;
-            imgHeatmapB.style.opacity = val / 100;
-        };
-        opacitySlider.oninput = updateOpacity;
-        updateOpacity(); // Initialize
-
-        // Mode switch (Overlay Swipe vs Side-by-Side)
-        const modeCheckbox = document.getElementById('compare-mode-checkbox');
-        const viewerOuter = document.querySelector('.comparison-viewer-outer');
-        if (modeCheckbox && viewerOuter) {
+        if (modeCheckbox) {
             modeCheckbox.onchange = () => {
-                if (modeCheckbox.checked) {
-                    viewerOuter.classList.add('side-by-side');
-                } else {
-                    viewerOuter.classList.remove('side-by-side');
+                syncLayoutMode();
+                if (N === 2) {
+                    const idxA = parseInt(selectA.value);
+                    const idxB = parseInt(selectB.value);
+                    updateTwoViewer(idxA, idxB);
                 }
             };
         }
@@ -707,9 +707,6 @@ const pages = {
         // Swipe Slider drag interaction using CSS Variable
         // ----------------------------------------------------
         let isDragging = false;
-
-        // Set default pos
-        container.style.setProperty('--slider-pos', '50%');
 
         const moveSlider = (clientX) => {
             if (modeCheckbox && modeCheckbox.checked) return; // side-by-side 모드이면 드래그 무시
@@ -751,12 +748,91 @@ const pages = {
             moveSlider(e.touches[0].clientX);
         };
 
-        // Bind events
-        handle.addEventListener('mousedown', onMouseDown);
+        // 3. Render contents based on selection count
+        if (N >= 3) {
+            if (selectorsArea) selectorsArea.style.display = 'none'; // 드롭다운 숨김
+            
+            container.innerHTML = selectedAnalyses.map((a, idx) => `
+                <div class="slider-image-wrapper" style="position: absolute; top: 0; left: ${(idx * 100) / N}%; width: ${100 / N}%; height: 100%; border-right: ${idx < N - 1 ? '2px solid #fff' : 'none'}; box-sizing: border-box;">
+                    <img src="${a.xray_image_url || ''}" alt="X-Ray ${idx}" class="comparison-base">
+                    ${a.heatmap_url ? `<img src="${a.heatmap_url}" alt="Heatmap ${idx}" class="comparison-heatmap" style="display: block;">` : ''}
+                    <div class="image-label" style="position: absolute; top: 12px; left: 12px; background: rgba(15, 23, 42, 0.75); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; z-index: 5; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.15);">
+                        ${a.chart_number || '미분석'} (${a.created_at ? new Date(a.created_at).toLocaleDateString() : '미분석'})
+                    </div>
+                </div>
+            `).join('');
+            
+            syncLayoutMode();
+            updateOpacity();
+        } else {
+            if (selectorsArea) selectorsArea.style.display = 'flex';
+            
+            container.innerHTML = `
+                <!-- Image A (Left side - Base) -->
+                <div class="slider-image-wrapper image-a-wrapper">
+                    <img id="compare-xray-a" src="" alt="X-Ray A" class="comparison-base">
+                    <img id="compare-heatmap-a" src="" alt="Heatmap A" class="comparison-heatmap">
+                </div>
+                
+                <!-- Image B (Right side - Overlay) -->
+                <div class="slider-image-wrapper image-b-wrapper">
+                    <img id="compare-xray-b" src="" alt="X-Ray B" class="comparison-base">
+                    <img id="compare-heatmap-b" src="" alt="Heatmap B" class="comparison-heatmap">
+                </div>
+                
+                <!-- Slider Handle -->
+                <div id="compare-slider-handle" class="comparison-slider-handle">
+                    <div class="handle-line"></div>
+                    <div class="handle-button">
+                        <span>&#10094;&#10095;</span>
+                    </div>
+                </div>
+            `;
+
+            // Set default pos
+            container.style.setProperty('--slider-pos', '50%');
+
+            const handle = document.getElementById('compare-slider-handle');
+            if (handle) {
+                handle.addEventListener('mousedown', onMouseDown);
+                handle.addEventListener('touchstart', onTouchStart);
+            }
+
+            // Populate dropdown options (using array index as value for mapping)
+            const optionsHtml = selectedAnalyses.map((a, idx) => {
+                const dateStr = a.created_at ? new Date(a.created_at).toLocaleString() : '미분석';
+                const hasAnalysis = a.id !== null;
+                const resultStr = hasAnalysis ? (a.is_pneumonia ? 'Positive' : 'Negative') : '미분석';
+                const confidenceStr = hasAnalysis ? `, ${a.confidence}%` : '';
+                const chartStr = a.chart_number ? ` (차트: ${a.chart_number})` : '';
+                return `<option value="${idx}">${dateStr} (${resultStr}${confidenceStr})${chartStr}</option>`;
+            }).join('');
+
+            selectA.innerHTML = optionsHtml;
+            selectB.innerHTML = optionsHtml;
+
+            // Set initial dropdown selections:
+            if (selectedAnalyses.length > 0) {
+                selectA.value = selectedAnalyses.length - 1;
+                selectB.value = 0;
+            }
+
+            const updateViewer = () => {
+                const idxA = parseInt(selectA.value);
+                const idxB = parseInt(selectB.value);
+                updateTwoViewer(idxA, idxB);
+            };
+
+            selectA.onchange = updateViewer;
+            selectB.onchange = updateViewer;
+
+            syncLayoutMode();
+            updateViewer();
+        }
+
+        // Bind global window events for dragging
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
-
-        handle.addEventListener('touchstart', onTouchStart);
         window.addEventListener('touchmove', onTouchMove, { passive: true });
         window.addEventListener('touchend', onMouseUp);
 
@@ -766,7 +842,6 @@ const pages = {
         // Cleanup and Close
         const closeModal = () => {
             modal.classList.remove('show');
-            // Remove window listeners to prevent memory leak
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('touchend', onMouseUp);
