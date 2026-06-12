@@ -646,16 +646,16 @@ const pages = {
                     modeCheckbox.disabled = true;
                 }
                 viewerOuter.classList.add('side-by-side');
-                viewerOuter.style.aspect-ratio = `${N * 1.33} / 1`;
+                viewerOuter.style.aspectRatio = `${N * 1.33} / 1`;
             } else {
                 if (modeCheckbox) {
                     modeCheckbox.disabled = false;
                     if (modeCheckbox.checked) {
                         viewerOuter.classList.add('side-by-side');
-                        viewerOuter.style.aspect-ratio = '2.66 / 1';
+                        viewerOuter.style.aspectRatio = '2.66 / 1';
                     } else {
                         viewerOuter.classList.remove('side-by-side');
-                        viewerOuter.style.aspect-ratio = '1.33 / 1';
+                        viewerOuter.style.aspectRatio = '1.33 / 1';
                     }
                 }
             }
