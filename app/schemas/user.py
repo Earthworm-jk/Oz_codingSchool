@@ -32,6 +32,7 @@ class UserCreate(BaseModel):
 class UserRead(BaseModel):
     id: int
     email: EmailStr
+    name: str
     # 추가된 필드들
     first_name: str
     last_name: Optional[str] = None
