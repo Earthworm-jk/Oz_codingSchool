@@ -717,18 +717,20 @@ footer {
     aspect-ratio: 2.66 / 1;
 }
 
-.comparison-viewer-outer.side-by-side .comparison-slider-container {
-    display: flex;
-}
-
 .comparison-viewer-outer.side-by-side .slider-image-wrapper {
-    position: relative;
+    position: absolute;
+    top: 0;
     width: 50%;
     height: 100%;
 }
 
+.comparison-viewer-outer.side-by-side .image-a-wrapper {
+    left: 0;
+}
+
 .comparison-viewer-outer.side-by-side .image-b-wrapper {
-    clip-path: none;
+    left: 50%;
+    clip-path: none !important;
 }
 
 .comparison-viewer-outer.side-by-side .comparison-slider-handle {
