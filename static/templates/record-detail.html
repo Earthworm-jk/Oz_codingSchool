@@ -1,15 +1,67 @@
 <div class="card">
     <h2>진료 상세 정보</h2>
-    <div style="display: flex; gap: 2rem;">
-        <div style="flex: 1;">
-            <p><strong>ID:</strong> <span id="record-id"></span></p>
-            <p><strong>차트 번호:</strong> <span id="chart-number"></span></p>
-            <p><strong>증상:</strong> <span id="symptoms-text"></span></p>
-            <p><strong>등록일:</strong> <span id="created-at"></span></p>
+    <!-- 상단 진료 기록 상세 요약 정보 (세로 목록형으로 정렬하여 텍스트 잘림 방지) -->
+    <div class="record-info-list" style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">
+            <strong style="width: 120px; color: #64748b; font-size: 0.95rem;">ID:</strong>
+            <span id="record-id" style="font-weight: 600; color: #1e293b;"></span>
         </div>
-        <div style="flex: 1;">
-            <p><strong>X-Ray 이미지:</strong></p>
-            <img id="xray-img" src="" alt="X-Ray" style="max-width: 100%; border-radius: 8px;">
+        <div style="display: flex; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">
+            <strong style="width: 120px; color: #64748b; font-size: 0.95rem;">차트 번호:</strong>
+            <span id="chart-number" style="font-weight: 600; color: #1e293b;"></span>
+        </div>
+        <div style="display: flex; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem;">
+            <strong style="width: 120px; color: #64748b; font-size: 0.95rem;">등록일:</strong>
+            <span id="created-at" style="font-weight: 500; color: #1e293b;"></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.25rem;">
+            <strong style="color: #64748b; font-size: 0.95rem;">증상:</strong>
+            <span id="symptoms-text" style="white-space: pre-wrap; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0; color: #334155; line-height: 1.5; font-size: 0.95rem;"></span>
+        </div>
+    </div>
+
+    <!-- 하단 X-Ray 이미지 및 분석 도구 배치 -->
+    <div style="margin-top: 1.5rem;">
+        <p><strong>X-Ray 이미지 및 AI 분석(Grad-CAM) 결과:</strong></p>
+        <div style="display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap;">
+            <div class="xray-viewer-container" style="flex: 1.2; min-width: 300px;">
+                <!-- Base X-Ray Image -->
+                <img id="xray-img" src="" alt="X-Ray" class="base-image">
+                <!-- Grad-CAM Heatmap Image (overlay) -->
+                <img id="heatmap-img" src="" alt="Grad-CAM Heatmap" class="heatmap-image" style="display: none; opacity: 0.45;">
+            </div>
+
+            <!-- Heatmap viewer controls (shown when prediction is run) -->
+            <div id="heatmap-controls" class="viewer-controls-card" style="display: none; flex: 1; min-width: 250px;">
+                <div class="opacity-control-group">
+                    <label for="opacity-slider">히트맵 불투명도:</label>
+                    <input type="range" id="opacity-slider" class="opacity-slider" min="0" max="100" value="45">
+                    <span id="opacity-val-label" class="opacity-value">45%</span>
+                </div>
+                
+                <div class="toggle-control-group">
+                    <div class="toggle-label">
+                        <span class="toggle-title">오버레이 활성화</span>
+                        <span class="toggle-desc">원본 X-Ray와 AI 히트맵 중첩 보기</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="overlay-toggle" checked>
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+
+                <!-- Color legend bar -->
+                <div class="heatmap-legend">
+                    <div class="legend-title">의심 영역 강도 (Grad-CAM Activation)</div>
+                    <div class="legend-bar-wrapper">
+                        <div class="legend-bar"></div>
+                        <div class="legend-labels">
+                            <span>낮음 (NORMAL)</span>
+                            <span>높음 (PNEUMONIA)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -17,7 +69,10 @@
     
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h3>AI 폐렴 예측 결과</h3>
-        <button id="predict-btn">AI 예측 결과보기</button>
+        <div style="display: flex; gap: 0.5rem;">
+            <button id="compare-btn" class="secondary" disabled>경과 비교하기</button>
+            <button id="predict-btn">AI 예측 결과보기</button>
+        </div>
     </div>
     
     <div id="analysis-list">
@@ -25,4 +80,61 @@
     </div>
     
     <button id="back-to-patient-btn" class="secondary" style="margin-top: 1rem;">진료 목록으로</button>
+</div>
+
+<!-- Comparison Modal -->
+<div id="comparison-modal" class="modal">
+    <div class="modal-content comparison-modal-content">
+        <div class="modal-header">
+            <h3>AI 분석 경과 비교 관찰</h3>
+            <span class="close-btn" id="close-comparison-modal">&times;</span>
+        </div>
+        
+        <div class="comparison-selectors">
+            <div class="selector-group">
+                <label for="compare-select-a">왼쪽 영역 (검사 A):</label>
+                <select id="compare-select-a" class="compare-select"></select>
+            </div>
+            <div class="selector-group">
+                <label for="compare-select-b">오른쪽 영역 (검사 B):</label>
+                <select id="compare-select-b" class="compare-select"></select>
+            </div>
+        </div>
+
+        <div class="comparison-viewer-outer">
+            <div id="comparison-slider-container" class="comparison-slider-container">
+                <!-- Image A (Left side - Base) -->
+                <div class="slider-image-wrapper image-a-wrapper">
+                    <img id="compare-xray-a" src="" alt="X-Ray A" class="comparison-base">
+                    <img id="compare-heatmap-a" src="" alt="Heatmap A" class="comparison-heatmap">
+                </div>
+                
+                <!-- Image B (Right side - Overlay) -->
+                <div class="slider-image-wrapper image-b-wrapper">
+                    <img id="compare-xray-b" src="" alt="X-Ray B" class="comparison-base">
+                    <img id="compare-heatmap-b" src="" alt="Heatmap B" class="comparison-heatmap">
+                </div>
+                
+                <!-- Slider Handle -->
+                <div id="compare-slider-handle" class="comparison-slider-handle">
+                    <div class="handle-line"></div>
+                    <div class="handle-button">
+                        <span>&#10094;&#10095;</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-controls" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div class="opacity-control-group" style="flex: 1; min-width: 200px;">
+                <label for="compare-opacity-slider">히트맵 불투명도:</label>
+                <input type="range" id="compare-opacity-slider" class="opacity-slider" min="0" max="100" value="45">
+                <span id="compare-opacity-val-label" class="opacity-value">45%</span>
+            </div>
+            <div class="mode-control-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="compare-mode-checkbox" style="width: 18px; height: 18px; cursor: pointer; vertical-align: middle;">
+                <label for="compare-mode-checkbox" style="font-weight: 600; font-size: 0.95rem; color: #334155; cursor: pointer; user-select: none; vertical-align: middle;">사이드-바이-사이드 보기</label>
+            </div>
+        </div>
+    </div>
 </div>

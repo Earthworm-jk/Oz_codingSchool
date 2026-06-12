@@ -344,3 +344,403 @@ footer {
     background-color: #ffdce0;
     color: var(--danger-color);
 }
+
+/* X-Ray Viewer & Grad-CAM Heatmap Styling */
+.xray-viewer-container {
+    position: relative;
+    max-width: 100%;
+    margin: 1rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: #000;
+}
+
+.xray-viewer-container .base-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.xray-viewer-container .heatmap-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    mix-blend-mode: normal; /* backend already blended it, normal blend works great */
+    pointer-events: none;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    opacity: 0.45;
+}
+
+.viewer-controls-card {
+    background: #f8fafc;
+    padding: 1.25rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-top: 1rem;
+}
+
+.opacity-control-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.opacity-control-group label {
+    font-size: 0.95rem;
+    color: #475569;
+    min-width: 130px;
+    margin-bottom: 0;
+}
+
+.opacity-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #cbd5e1;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.opacity-slider::-webkit-slider-thumb:hover {
+    background: #2980b9;
+}
+
+.opacity-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 45px;
+    text-align: right;
+}
+
+.toggle-control-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.toggle-label {
+    display: flex;
+    flex-direction: column;
+}
+
+.toggle-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.toggle-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+/* Switch styling */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider-toggle {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.slider-toggle:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.switch input:checked + .slider-toggle {
+    background-color: var(--secondary-color);
+}
+
+.switch input:checked + .slider-toggle:before {
+    transform: translateX(22px);
+}
+
+/* Color Legend */
+.heatmap-legend {
+    margin-top: 1rem;
+}
+
+.legend-title {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+.legend-bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.legend-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, blue, green, red);
+}
+
+.legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* ==========================================
+   경과 비교 모달 (Comparison Modal) & Swipe Slider
+   ========================================== */
+
+/* 1. 비교 모달 사이즈 조정 */
+.comparison-modal-content {
+    max-width: 800px;
+    width: 95%;
+    text-align: left;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.close-btn {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.15s;
+}
+
+.close-btn:hover {
+    color: #334155;
+}
+
+/* 2. 셀렉터 영역 */
+.comparison-selectors {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.selector-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.compare-select {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+
+/* 3. 슬라이더 뷰어 외곽 */
+.comparison-viewer-outer {
+    width: 100%;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    aspect-ratio: 1.33 / 1; /* 일반 X-Ray의 가로세로 비율 대응 */
+    max-height: 500px;
+    position: relative;
+}
+
+/* 4. 슬라이더 메인 컨테이너 */
+.comparison-slider-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* 5. 이미지 래퍼 및 이미지 */
+.slider-image-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.comparison-base {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.comparison-heatmap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    opacity: 0.45;
+}
+
+/* A는 배경으로 깔림 */
+.image-a-wrapper {
+    z-index: 1;
+}
+
+/* B는 위에 얹어지고 clip-path에 의해 오른쪽 영역만 보여짐 (디폴트는 50% 잘라냄) */
+.image-b-wrapper {
+    z-index: 2;
+    clip-path: inset(0 0 0 var(--slider-pos, 50%));
+}
+
+/* 6. 슬라이더 핸들 */
+.comparison-slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--slider-pos, 50%);
+    width: 4px;
+    background-color: #fff;
+    cursor: ew-resize;
+    z-index: 10;
+    transform: translateX(-50%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.handle-line {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.handle-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    background-color: #fff;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: ew-resize;
+    color: var(--primary-color);
+    font-size: 0.8rem;
+    font-weight: bold;
+    border: 2px solid var(--primary-color);
+}
+
+/* 7. 체크박스 및 테이블 스타일링 */
+.compare-checkbox {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+#compare-btn:disabled {
+    background-color: #cbd5e1;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.comparison-controls {
+    margin-top: 1rem;
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+/* 8. 사이드-바이-사이드 레이아웃 대응 */
+.comparison-viewer-outer.side-by-side {
+    aspect-ratio: 2.66 / 1;
+    max-height: 80vh; /* 세로 높이 제한을 약 2배(브라우저 화면 80%)로 대폭 확장 */
+}
+
+.comparison-viewer-outer.side-by-side .slider-image-wrapper {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+}
+
+.comparison-viewer-outer.side-by-side .image-a-wrapper {
+    left: 0;
+}
+
+.comparison-viewer-outer.side-by-side .image-b-wrapper {
+    left: 50%;
+    clip-path: none !important;
+}
+
+.comparison-viewer-outer.side-by-side .comparison-slider-handle {
+    display: none !important;
+}
+
+/* 사이드-바이-사이드 활성화 시 모달 전체 가로 폭을 2배인 1600px로 확장 */
+.comparison-modal-content.wide-mode {
+    max-width: 1600px !important;
+    width: 95% !important;
+}
+
