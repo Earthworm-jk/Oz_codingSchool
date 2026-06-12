@@ -13,7 +13,8 @@ from app.core.db.databases import async_get_db
 from app.models.medical_records import MedicalRecord
 from app.models.xray_images import XrayImage
 from app.models.ai_analysis_results import AiAnalysisResult
-from app.schemas.pneumonia_schemas import PneumoniaPredictionResponse, AiAnalysisResultResponse
+from app.schemas.pneumonia_schemas import PneumoniaPredictionResponse
+from app.schemas.patient_record_schemas import AiAnalysisResultResponse
 from worker.model import predict_pneumonia, generate_heatmap
 
 router = APIRouter(prefix="/api/v1", tags=["AI Pneumonia Prediction"])
