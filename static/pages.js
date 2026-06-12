@@ -488,48 +488,43 @@ const pages = {
         document.getElementById('created-at').innerText = new Date(record.created_at).toLocaleString();
         document.getElementById('xray-img').src = record.xray_image_url;
         
-        // Setup heatmap and controls if analyses are present
+        // Setup heatmap and controls if analyses are present for CURRENT record
         const heatmapImg = document.getElementById('heatmap-img');
         const heatmapControls = document.getElementById('heatmap-controls');
         const opacitySlider = document.getElementById('opacity-slider');
         const opacityValLabel = document.getElementById('opacity-val-label');
         const overlayToggle = document.getElementById('overlay-toggle');
 
-        if (analyses.length > 0) {
-            // Get the latest analysis
-            const latestAnalysis = analyses[0];
-            if (latestAnalysis.heatmap_url) {
-                heatmapImg.src = latestAnalysis.heatmap_url;
-                heatmapImg.style.display = 'block';
-                heatmapControls.style.display = 'block';
-                
-                // Opacity logic
-                const updateOpacity = () => {
-                    const opacityValue = opacitySlider.value;
-                    opacityValLabel.innerText = `${opacityValue}%`;
-                    if (overlayToggle.checked) {
-                        heatmapImg.style.opacity = opacityValue / 100;
-                    }
-                };
+        const currentAnalysis = analyses.find(a => a.record_id === record.id && a.id !== null);
 
-                opacitySlider.oninput = updateOpacity;
+        if (currentAnalysis && currentAnalysis.heatmap_url) {
+            heatmapImg.src = currentAnalysis.heatmap_url;
+            heatmapImg.style.display = 'block';
+            heatmapControls.style.display = 'block';
+            
+            // Opacity logic
+            const updateOpacity = () => {
+                const opacityValue = opacitySlider.value;
+                opacityValLabel.innerText = `${opacityValue}%`;
+                if (overlayToggle.checked) {
+                    heatmapImg.style.opacity = opacityValue / 100;
+                }
+            };
 
-                // Toggle logic
-                overlayToggle.onchange = () => {
-                    if (overlayToggle.checked) {
-                        heatmapImg.style.display = 'block';
-                        heatmapImg.style.opacity = opacitySlider.value / 100;
-                    } else {
-                        heatmapImg.style.display = 'none';
-                    }
-                };
+            opacitySlider.oninput = updateOpacity;
 
-                // Initialize values
-                updateOpacity();
-            } else {
-                if (heatmapImg) heatmapImg.style.display = 'none';
-                if (heatmapControls) heatmapControls.style.display = 'none';
-            }
+            // Toggle logic
+            overlayToggle.onchange = () => {
+                if (overlayToggle.checked) {
+                    heatmapImg.style.display = 'block';
+                    heatmapImg.style.opacity = opacitySlider.value / 100;
+                } else {
+                    heatmapImg.style.display = 'none';
+                }
+            };
+
+            // Initialize values
+            updateOpacity();
         } else {
             if (heatmapImg) heatmapImg.style.display = 'none';
             if (heatmapControls) heatmapControls.style.display = 'none';
@@ -561,18 +556,27 @@ const pages = {
                         </tr>
                     </thead>
                     <tbody>
-                        ${analyses.map(a => `
-                            <tr class="${a.is_pneumonia ? 'result-positive' : 'result-negative'}">
-                                <td style="text-align: center;">
-                                    <input type="checkbox" class="compare-checkbox" data-id="${a.id}">
-                                </td>
-                                <td><strong>${a.chart_number || '-'}</strong></td>
-                                <td>${new Date(a.created_at).toLocaleString()}</td>
-                                <td><strong>${a.is_pneumonia ? 'Positive' : 'Negative'}</strong></td>
-                                <td>${a.confidence}%</td>
-                                <td>${a.ai_model}</td>
-                            </tr>
-                        `).join('')}
+                        ${analyses.map(a => {
+                            const hasAnalysis = a.id !== null;
+                            const trClass = hasAnalysis ? (a.is_pneumonia ? 'result-positive' : 'result-negative') : '';
+                            const confidenceText = hasAnalysis ? `${a.confidence}%` : '-';
+                            const modelText = hasAnalysis ? a.ai_model : '-';
+                            const resultText = hasAnalysis ? (a.is_pneumonia ? 'Positive' : 'Negative') : '미분석';
+                            const dateText = a.created_at ? new Date(a.created_at).toLocaleString() : '-';
+                            const dataId = hasAnalysis ? a.id : `record-${a.record_id}`;
+                            return `
+                                <tr class="${trClass}">
+                                    <td style="text-align: center;">
+                                        <input type="checkbox" class="compare-checkbox" data-id="${dataId}" data-record-id="${a.record_id}" data-has-analysis="${hasAnalysis}">
+                                    </td>
+                                    <td><strong>${a.chart_number || '-'}</strong></td>
+                                    <td>${dateText}</td>
+                                    <td><strong>${resultText}</strong></td>
+                                    <td>${confidenceText}</td>
+                                    <td>${modelText}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -589,10 +593,19 @@ const pages = {
             });
 
             compareBtn.onclick = () => {
-                const selectedIds = Array.from(checkboxes)
+                const selectedAnalyses = Array.from(checkboxes)
                     .filter(cb => cb.checked)
-                    .map(cb => parseInt(cb.dataset.id));
-                const selectedAnalyses = analyses.filter(a => selectedIds.includes(a.id));
+                    .map(cb => {
+                        const hasAnalysis = cb.dataset.hasAnalysis === 'true';
+                        const recordId = parseInt(cb.dataset.recordId);
+                        if (hasAnalysis) {
+                            const id = parseInt(cb.dataset.id);
+                            return analyses.find(a => a.id === id);
+                        } else {
+                            return analyses.find(a => a.record_id === recordId && a.id === null);
+                        }
+                    })
+                    .filter(Boolean);
                 this.openComparisonModal(selectedAnalyses);
             };
         }
@@ -612,12 +625,14 @@ const pages = {
         const container = document.getElementById('comparison-slider-container');
         const handle = document.getElementById('compare-slider-handle');
 
-        // Populate dropdown options
-        const optionsHtml = selectedAnalyses.map(a => {
-            const dateStr = new Date(a.created_at).toLocaleString();
-            const resultStr = a.is_pneumonia ? 'Positive' : 'Negative';
+        // Populate dropdown options (using array index as value for mapping)
+        const optionsHtml = selectedAnalyses.map((a, idx) => {
+            const dateStr = a.created_at ? new Date(a.created_at).toLocaleString() : '미분석';
+            const hasAnalysis = a.id !== null;
+            const resultStr = hasAnalysis ? (a.is_pneumonia ? 'Positive' : 'Negative') : '미분석';
+            const confidenceStr = hasAnalysis ? `, ${a.confidence}%` : '';
             const chartStr = a.chart_number ? ` (차트: ${a.chart_number})` : '';
-            return `<option value="${a.id}">${dateStr} (${resultStr}, ${a.confidence}%)${chartStr}</option>`;
+            return `<option value="${idx}">${dateStr} (${resultStr}${confidenceStr})${chartStr}</option>`;
         }).join('');
 
         selectA.innerHTML = optionsHtml;
@@ -625,17 +640,17 @@ const pages = {
 
         // Set initial dropdown selections:
         if (selectedAnalyses.length > 0) {
-            selectA.value = selectedAnalyses[selectedAnalyses.length - 1].id;
-            selectB.value = selectedAnalyses[0].id;
+            selectA.value = selectedAnalyses.length - 1;
+            selectB.value = 0;
         }
 
         // Helper function to update xray images and heatmap images based on selection
         const updateViewer = () => {
-            const idA = parseInt(selectA.value);
-            const idB = parseInt(selectB.value);
+            const idxA = parseInt(selectA.value);
+            const idxB = parseInt(selectB.value);
             
-            const analysisA = selectedAnalyses.find(a => a.id === idA);
-            const analysisB = selectedAnalyses.find(a => a.id === idB);
+            const analysisA = selectedAnalyses[idxA];
+            const analysisB = selectedAnalyses[idxB];
 
             if (analysisA) {
                 imgXrayA.src = analysisA.xray_image_url || '';
@@ -675,6 +690,19 @@ const pages = {
         opacitySlider.oninput = updateOpacity;
         updateOpacity(); // Initialize
 
+        // Mode switch (Overlay Swipe vs Side-by-Side)
+        const modeCheckbox = document.getElementById('compare-mode-checkbox');
+        const viewerOuter = document.querySelector('.comparison-viewer-outer');
+        if (modeCheckbox && viewerOuter) {
+            modeCheckbox.onchange = () => {
+                if (modeCheckbox.checked) {
+                    viewerOuter.classList.add('side-by-side');
+                } else {
+                    viewerOuter.classList.remove('side-by-side');
+                }
+            };
+        }
+
         // ----------------------------------------------------
         // Swipe Slider drag interaction using CSS Variable
         // ----------------------------------------------------
@@ -684,6 +712,7 @@ const pages = {
         container.style.setProperty('--slider-pos', '50%');
 
         const moveSlider = (clientX) => {
+            if (modeCheckbox && modeCheckbox.checked) return; // side-by-side 모드이면 드래그 무시
             const rect = container.getBoundingClientRect();
             let x = clientX - rect.left;
             

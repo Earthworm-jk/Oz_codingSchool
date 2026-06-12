@@ -308,7 +308,6 @@ async def get_pneumonia_result_by_record(
             created_at=a.created_at,
             updated_at=a.updated_at
         ))
-        
     return response_list
 
 
@@ -327,37 +326,56 @@ async def get_pneumonia_results_by_patient(
     if not patient:
         raise HTTPException(status_code=404, detail="존재하지 않는 환자입니다.")
 
-    # 2. 환자의 전체 진료 기록에 딸린 분석 결과 조회
-    from sqlalchemy.orm import joinedload, selectinload
+    # 2. 환자의 전체 진료 기록과 AI 분석 결과를 Left Outer Join하여 조회 (X-Ray가 존재하는 진료 기록만 대상)
+    from sqlalchemy.orm import selectinload
     result_query = await db.execute(
-        select(AiAnalysisResult)
-        .join(MedicalRecord, AiAnalysisResult.record_id == MedicalRecord.id)
+        select(MedicalRecord, AiAnalysisResult)
+        .join(XrayImage, MedicalRecord.id == XrayImage.record_id)
+        .outerjoin(AiAnalysisResult, MedicalRecord.id == AiAnalysisResult.record_id)
         .where(MedicalRecord.patient_id == patient_id)
         .options(
-            joinedload(AiAnalysisResult.medical_record)
-            .selectinload(MedicalRecord.xray_images)
+            selectinload(MedicalRecord.xray_images)
         )
-        .order_by(AiAnalysisResult.created_at.desc())
+        .order_by(MedicalRecord.created_at.desc(), AiAnalysisResult.created_at.desc())
     )
-    analysis_results = result_query.scalars().all()
+    rows = result_query.all()
 
     # 3. 각 분석 결과에 xray_image_url과 chart_number 바인딩
     response_list = []
-    for a in analysis_results:
+    for medical_record, analysis in rows:
         xray_url = None
-        if a.medical_record.xray_images and len(a.medical_record.xray_images) > 0:
-            xray_url = a.medical_record.xray_images[0].image_url
-        response_list.append(AiAnalysisResultResponse(
-            id=a.id,
-            record_id=a.record_id,
-            is_pneumonia=a.is_pneumonia,
-            confidence=a.confidence,
-            heatmap_url=a.heatmap_url,
-            ai_model=a.ai_model,
-            xray_image_url=xray_url,
-            chart_number=a.medical_record.chart_number,
-            created_at=a.created_at,
-            updated_at=a.updated_at
-        ))
+        if medical_record.xray_images and len(medical_record.xray_images) > 0:
+            xray_url = medical_record.xray_images[0].image_url
+            
+        if analysis:
+            response_list.append(AiAnalysisResultResponse(
+                id=analysis.id,
+                record_id=analysis.record_id,
+                is_pneumonia=analysis.is_pneumonia,
+                confidence=analysis.confidence,
+                heatmap_url=analysis.heatmap_url,
+                ai_model=analysis.ai_model,
+                xray_image_url=xray_url,
+                chart_number=medical_record.chart_number,
+                created_at=analysis.created_at,
+                updated_at=analysis.updated_at
+            ))
+        else:
+            response_list.append(AiAnalysisResultResponse(
+                id=None,
+                record_id=medical_record.id,
+                is_pneumonia=None,
+                confidence=None,
+                heatmap_url=None,
+                ai_model=None,
+                xray_image_url=xray_url,
+                chart_number=medical_record.chart_number,
+                created_at=medical_record.created_at,
+                updated_at=medical_record.updated_at
+            ))
 
     return response_list
+
+
+
+

@@ -109,13 +109,14 @@ class MedicalRecordResponse(BaseModel):
 class AiAnalysisResultResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: int | None = None
     record_id: int
-    is_pneumonia: bool
-    confidence: Decimal
-    heatmap_url: str
-    ai_model: str
+    is_pneumonia: bool | None = None
+    confidence: Decimal | None = None
+    heatmap_url: str | None = None
+    ai_model: str | None = None
     xray_image_url: str | None = None
     chart_number: str | None = None
-    created_at: datetime
+    created_at: datetime | None = None
     updated_at: datetime | None = None
+

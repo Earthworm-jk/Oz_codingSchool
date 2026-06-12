@@ -125,11 +125,18 @@
             </div>
         </div>
 
-        <div class="comparison-controls">
-            <div class="opacity-control-group">
+        <div class="comparison-controls" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div class="opacity-control-group" style="flex: 1; min-width: 200px;">
                 <label for="compare-opacity-slider">히트맵 불투명도:</label>
                 <input type="range" id="compare-opacity-slider" class="opacity-slider" min="0" max="100" value="45">
                 <span id="compare-opacity-val-label" class="opacity-value">45%</span>
+            </div>
+            <div class="mode-control-group" style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="font-weight: 600; font-size: 0.95rem; color: #334155;">사이드-바이-사이드 보기</span>
+                <label class="switch">
+                    <input type="checkbox" id="compare-mode-checkbox">
+                    <span class="slider-toggle"></span>
+                </label>
             </div>
         </div>
     </div>
