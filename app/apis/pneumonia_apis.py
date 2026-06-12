@@ -209,7 +209,19 @@ async def predict_pneumonia_by_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
-    return await execute_pneumonia_prediction(record_id, xray_image, db)
+    result = await execute_pneumonia_prediction(record_id, xray_image, db)
+    return AiAnalysisResultResponse(
+        id=result.id,
+        record_id=result.record_id,
+        is_pneumonia=result.is_pneumonia,
+        confidence=result.confidence,
+        heatmap_url=result.heatmap_url,
+        ai_model=result.ai_model,
+        xray_image_url=result.xray_image_url,
+        chart_number=result.chart_number,
+        created_at=result.created_at,
+        updated_at=result.updated_at
+    )
 
 
 @router.post(
@@ -241,7 +253,19 @@ async def predict_pneumonia_api(
             raise HTTPException(status_code=404, detail="해당 환자의 진료 기록이 존재하지 않습니다.")
     
     xray_image = await get_valid_xray_image_from_record(record, db)
-    return await execute_pneumonia_prediction(record.id, xray_image, db)
+    result = await execute_pneumonia_prediction(record.id, xray_image, db)
+    return AiAnalysisResultResponse(
+        id=result.id,
+        record_id=result.record_id,
+        is_pneumonia=result.is_pneumonia,
+        confidence=result.confidence,
+        heatmap_url=result.heatmap_url,
+        ai_model=result.ai_model,
+        xray_image_url=result.xray_image_url,
+        chart_number=result.chart_number,
+        created_at=result.created_at,
+        updated_at=result.updated_at
+    )
 
 
 @router.get(
@@ -267,14 +291,25 @@ async def get_pneumonia_result_by_record(
     )
     analysis_results = result_query.scalars().all()
     
+    response_list = []
     for a in analysis_results:
         xray_url = None
         if a.medical_record.xray_images:
             xray_url = a.medical_record.xray_images[0].image_url
-        a.xray_image_url = xray_url
-        a.chart_number = a.medical_record.chart_number
+        response_list.append(AiAnalysisResultResponse(
+            id=a.id,
+            record_id=a.record_id,
+            is_pneumonia=a.is_pneumonia,
+            confidence=a.confidence,
+            heatmap_url=a.heatmap_url,
+            ai_model=a.ai_model,
+            xray_image_url=xray_url,
+            chart_number=a.medical_record.chart_number,
+            created_at=a.created_at,
+            updated_at=a.updated_at
+        ))
         
-    return analysis_results
+    return response_list
 
 
 @router.get(
@@ -307,11 +342,22 @@ async def get_pneumonia_results_by_patient(
     analysis_results = result_query.scalars().all()
 
     # 3. 각 분석 결과에 xray_image_url과 chart_number 바인딩
+    response_list = []
     for a in analysis_results:
         xray_url = None
         if a.medical_record.xray_images:
             xray_url = a.medical_record.xray_images[0].image_url
-        a.xray_image_url = xray_url
-        a.chart_number = a.medical_record.chart_number
+        response_list.append(AiAnalysisResultResponse(
+            id=a.id,
+            record_id=a.record_id,
+            is_pneumonia=a.is_pneumonia,
+            confidence=a.confidence,
+            heatmap_url=a.heatmap_url,
+            ai_model=a.ai_model,
+            xray_image_url=xray_url,
+            chart_number=a.medical_record.chart_number,
+            created_at=a.created_at,
+            updated_at=a.updated_at
+        ))
 
-    return analysis_results
+    return response_list
