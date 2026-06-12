@@ -15,6 +15,8 @@ from app.models.xray_images import XrayImage
 from app.models.ai_analysis_results import AiAnalysisResult
 from app.schemas.pneumonia_schemas import PneumoniaPredictionResponse
 from app.schemas.patient_record_schemas import AiAnalysisResultResponse
+from app.core.auth.jwt import get_current_user
+from app.models.users import User
 from worker.model import predict_pneumonia, generate_heatmap
 
 router = APIRouter(prefix="/api/v1", tags=["AI Pneumonia Prediction"])
@@ -166,7 +168,8 @@ async def execute_pneumonia_prediction(
     response_model=PneumoniaPredictionResponse
 )
 async def predict_pneumonia_by_upload(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
 ):
     # 1. 포맷 확인
     file_ext = os.path.splitext(file.filename)[1].lower()
@@ -196,6 +199,7 @@ async def predict_pneumonia_by_upload(
 async def predict_pneumonia_by_record(
     record_id: int,
     xray_image: XrayImage = Depends(get_valid_xray_image),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
     return await execute_pneumonia_prediction(record_id, xray_image, db)
@@ -209,6 +213,7 @@ async def predict_pneumonia_by_record(
 async def predict_pneumonia_api(
     record_id: int | None = Query(None, description="진료 기록 ID"),
     patient_id: int | None = Query(None, description="환자 ID"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
     if record_id is None and patient_id is None:
@@ -240,6 +245,7 @@ async def predict_pneumonia_api(
 async def get_pneumonia_result_by_record(
     record_id: int,
     record: MedicalRecord = Depends(get_valid_medical_record),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
     result_query = await db.execute(
