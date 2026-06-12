@@ -26,5 +26,6 @@ envs/
 *.db
 
 # Uploaded runtime files
+media/xray_images/
 media/temp/
 media/heatmap/
