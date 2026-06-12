@@ -13,6 +13,7 @@
 | **[REQ-PNEU-001]** | [1. AI 폐렴 예측 실행 API](#1-ai-폐렴-예측-실행-api) | `POST` | `/api/v1/medical-records/{record_id}/predict` | Y | 특정 진료 기록의 X-Ray 분석 및 DB 저장 |
 | **[REQ-PNEU-002]** | [2. AI 폐렴 예측 결과 조회 API](#2-ai-폐렴-예측-결과-조회-api) | `GET` | `/api/v1/medical-records/{record_id}/analyses` | Y | 특정 진료 기록의 기존 분석 결과 목록 조회 (배열) |
 | **[REQ-PNEU-003]** | [3. AI 폐렴 즉시 예측 API (업로드)](#3-ai-폐렴-즉시-예측-api-업로드) | `POST` | `/api/v1/pneumonia/predict/upload` | Y | 이미지 업로드 즉시 폐렴 분석 및 반환 (DB 저장 안 함) |
+| **[REQ-PNEU-004]** | [4. AI 폐렴 통합 예측 API (ID/환자 기반)](#4-ai-폐렴-통합-예측-api-id환자-기반) | `POST` | `/api/v1/pneumonia/predict` | Y | 진료 기록 ID 또는 환자 ID를 활용한 예측 수행 및 저장 |
 
 ---
 
@@ -123,16 +124,56 @@
 
 ---
 
-## 4. Grad-CAM 기술 사양 및 프론트엔드 시각화 가이드
+## 4. AI 폐렴 통합 예측 API (ID/환자 기반)
 
-### 4.1 Grad-CAM (Gradient-weighted Class Activation Mapping) 원리
+### 4.1 API 개요
+* **설명**: Query Parameter로 진료 기록 ID(`record_id`) 또는 환자 ID(`patient_id`) 중 하나를 전달받아 폐렴 예측 분석을 실행하고 저장합니다.
+  * `record_id` 지정 시: 해당 진료 기록의 X-Ray 이미지를 기반으로 즉시 분석을 수행합니다.
+  * `patient_id` 지정 시: 해당 환자의 **가장 최신(가장 최근 등록된) 진료 기록**을 자동으로 조회하여 분석을 수행합니다.
+  * 두 값 모두 누락된 경우 `400 Bad Request` 에러를 반환합니다.
+* **엔드포인트**: `/api/v1/pneumonia/predict`
+* **메서드**: `POST`
+* **인증 필요**: Y (의료진/직원 사용자)
+
+### 4.2 요청(Request)
+* **쿼리 파라미터**:
+
+| 파라미터명 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| record_id | integer | N | AI 분석을 수행할 진료 기록 ID |
+| patient_id | integer | N | 가장 최신 진료 기록을 조회할 환자 ID |
+
+### 4.3 응답(Response)
+* **성공 (200 OK)**:
+```json
+{
+  "id": 5,
+  "record_id": 11,
+  "is_pneumonia": false,
+  "confidence": 88.50,
+  "heatmap_url": "/media/heatmap/record_11_abc123.png",
+  "ai_model": "SimpleCNN",
+  "created_at": "2026-06-12T18:30:00",
+  "updated_at": "2026-06-12T18:30:00"
+}
+```
+
+* **실패**:
+  * `400 Bad Request` (두 파라미터가 모두 누락된 경우: `record_id 또는 patient_id 중 하나는 필수입니다.`)
+  * `404 Not Found` (해당하는 진료 기록이나 환자 정보가 없는 경우: `해당 환자의 진료 기록이 존재하지 않습니다.`)
+
+---
+
+## 5. Grad-CAM 기술 사양 및 프론트엔드 시각화 가이드
+
+### 5.1 Grad-CAM (Gradient-weighted Class Activation Mapping) 원리
 본 서비스는 AI의 판독 신뢰성을 높이기 위해 **설명 가능한 AI (XAI)** 기술인 Grad-CAM을 제공합니다.
 * **레이어 타겟팅**: `SimpleCNN` 모델의 마지막 컨볼루션 레이어(`model.conv[3]`)의 활성화 맵(Feature Map)을 타겟으로 합니다.
 * **그라디언트 캡처**: 순전파를 통해 폐렴 점수(Score)를 계산하고 역전파 시 해당 활성화 맵에 흐르는 그라디언트를 계산해 가중치를 얻습니다.
 * **히트맵 생성**: 수집된 가중치와 활성화 맵을 가중합한 후, 양의 활성화 영역만 추출하는 ReLU 연산을 적용하여 최종 히트맵을 생성합니다.
 * **저장 및 제공**: 히트맵은 원본 흉부 X-ray와 오버레이(투명도 45%)되어 `/media/heatmap/record_{record_id}.png` 경로에 저장됩니다.
 
-### 4.2 프론트엔드 UI/UX 시각화 권장 사양
+### 5.2 프론트엔드 UI/UX 시각화 권장 사양
 프론트엔드에서는 의료진이 병변 의심 부위를 직관적으로 판별할 수 있도록 아래와 같은 UI 구성을 구현하는 것을 강력히 권장합니다.
 
 1. **원본 X-ray 및 Heatmap 오버레이 레이아웃**
@@ -141,6 +182,10 @@
    * HTML `<input type="range" min="0" max="100">` 슬라이더를 배치하여 사용자가 히트맵 이미지의 투명도(CSS `opacity`)를 실시간 조절할 수 있도록 합니다.
 3. **히트맵 토글 및 범례 레전드 제공**
    * 히트맵을 즉시 켜고 끌 수 있는 토글 스위치와 히트맵의 강도(빨강 = 높은 의심도, 파랑 = 낮은 의심도)를 설명해 주는 컬러 바 레전드를 표시합니다.
+4. **반응형 상세 요약 정보 및 세로 배치 (텍스트 잘림 해결)**
+   * 좁은 화면 해상도나 긴 텍스트에서 ID, 차트번호, 등록일, 증상(symptoms) 정보가 잘리거나 일그러지는 현상을 방지하기 위해 상단 영역은 수직형 Flexbox Column 구조(`display: flex; flex-direction: column`)로 정렬합니다.
+   * 증상 텍스트의 줄바꿈과 여백을 확보하기 위해 `white-space: pre-wrap` 속성 및 연한 회색 백그라운드 카드 레이아웃을 사용합니다.
+   * X-Ray 뷰어 이미지 및 Grad-CAM 컨트롤 카드 등의 대형 비주얼 컴포넌트는 해당 텍스트 설명 영역 하단에 완전한 여백(`margin-top: 2rem`)을 두고 배치하여 UI 겹침 현상을 완벽히 방지합니다.
 
 #### 🎨 프론트엔드 시각화 UI 구현 예시 (Dark Mode Mockup)
 ![프론트엔드 시각화 예시 이미지](../../media/6일차_frontend_ui_mockup.png)
@@ -193,7 +238,7 @@ slider.addEventListener('input', (e) => {
 });
 </script>
 
-### 4.3 경과 비교 관찰용 Swipe Slider 시각화 설계 (경과 모니터링)
+### 5.3 경과 비교 관찰용 Swipe Slider 시각화 설계 (경과 모니터링)
 여러 시점의 AI 예측 결과를 다중 선택(3개 이상 선택 가능)하여, 팝업 모달창에서 드롭다운으로 비교 대상들을 실시간으로 자유롭게 변경해가며 마우스 슬라이더(Swipe)를 통해 실시간으로 병변 경과를 관찰할 수 있는 인터랙티브 UI 설계 규격입니다.
 
 1. **다중 선택 활성화**:
