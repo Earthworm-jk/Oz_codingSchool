@@ -279,13 +279,13 @@ async def get_pneumonia_result_by_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
-    from sqlalchemy.orm import joinedload
+    from sqlalchemy.orm import joinedload, selectinload
     result_query = await db.execute(
         select(AiAnalysisResult)
         .where(AiAnalysisResult.record_id == record_id)
         .options(
             joinedload(AiAnalysisResult.medical_record)
-            .joinedload(MedicalRecord.xray_images)
+            .selectinload(MedicalRecord.xray_images)
         )
         .order_by(AiAnalysisResult.created_at.desc())
     )
@@ -328,14 +328,14 @@ async def get_pneumonia_results_by_patient(
         raise HTTPException(status_code=404, detail="존재하지 않는 환자입니다.")
 
     # 2. 환자의 전체 진료 기록에 딸린 분석 결과 조회
-    from sqlalchemy.orm import joinedload
+    from sqlalchemy.orm import joinedload, selectinload
     result_query = await db.execute(
         select(AiAnalysisResult)
         .join(MedicalRecord, AiAnalysisResult.record_id == MedicalRecord.id)
         .where(MedicalRecord.patient_id == patient_id)
         .options(
             joinedload(AiAnalysisResult.medical_record)
-            .joinedload(MedicalRecord.xray_images)
+            .selectinload(MedicalRecord.xray_images)
         )
         .order_by(AiAnalysisResult.created_at.desc())
     )
