@@ -715,6 +715,7 @@ footer {
 /* 8. 사이드-바이-사이드 레이아웃 대응 */
 .comparison-viewer-outer.side-by-side {
     aspect-ratio: 2.66 / 1;
+    max-height: 80vh; /* 세로 높이 제한을 약 2배(브라우저 화면 80%)로 대폭 확장 */
 }
 
 .comparison-viewer-outer.side-by-side .slider-image-wrapper {
@@ -735,5 +736,11 @@ footer {
 
 .comparison-viewer-outer.side-by-side .comparison-slider-handle {
     display: none !important;
+}
+
+/* 사이드-바이-사이드 활성화 시 모달 전체 가로 폭을 2배인 1600px로 확장 */
+.comparison-modal-content.wide-mode {
+    max-width: 1600px !important;
+    width: 95% !important;
 }
 

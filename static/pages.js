@@ -615,6 +615,7 @@ const pages = {
         const modal = document.getElementById('comparison-modal');
         const closeBtn = document.getElementById('close-comparison-modal');
         const selectorsArea = document.querySelector('.comparison-selectors');
+        const modalContent = document.querySelector('.comparison-modal-content');
         const selectA = document.getElementById('compare-select-a');
         const selectB = document.getElementById('compare-select-b');
         const opacitySlider = document.getElementById('compare-opacity-slider');
