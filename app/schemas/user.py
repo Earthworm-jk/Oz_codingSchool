@@ -32,15 +32,26 @@ class UserCreate(BaseModel):
 class UserRead(BaseModel):
     id: int
     email: EmailStr
-    name: str
+    # 추가된 필드들
+    first_name: str
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    department: Optional[str] = None
+    gender: Optional[str] = None
+    phone_number: Optional[str] = None
+    nationality: Optional[str] = None
+    
     employee_number: str
     role: str
     is_active: bool
 
     class Config:
         from_attributes = True
-
+        
 class UserUpdate(BaseModel):
     department: Optional[DepartmentEnum] = None
     phone_number: Optional[str] = None
   
+class UserPasswordUpdate(BaseModel):
+    current_password: str = Field(..., description="현재 사용 중인 비밀번호")
+    new_password: str = Field(..., min_length=8, description="변경할 새로운 비밀번호")  
