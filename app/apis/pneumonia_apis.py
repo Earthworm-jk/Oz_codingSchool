@@ -294,7 +294,7 @@ async def get_pneumonia_result_by_record(
     response_list = []
     for a in analysis_results:
         xray_url = None
-        if a.medical_record.xray_images:
+        if a.medical_record.xray_images and len(a.medical_record.xray_images) > 0:
             xray_url = a.medical_record.xray_images[0].image_url
         response_list.append(AiAnalysisResultResponse(
             id=a.id,
@@ -345,7 +345,7 @@ async def get_pneumonia_results_by_patient(
     response_list = []
     for a in analysis_results:
         xray_url = None
-        if a.medical_record.xray_images:
+        if a.medical_record.xray_images and len(a.medical_record.xray_images) > 0:
             xray_url = a.medical_record.xray_images[0].image_url
         response_list.append(AiAnalysisResultResponse(
             id=a.id,
