@@ -4,7 +4,7 @@ import tempfile
 import uuid
 from pathlib import Path
 from contextlib import contextmanager
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from decimal import Decimal
@@ -13,7 +13,10 @@ from app.core.db.databases import async_get_db
 from app.models.medical_records import MedicalRecord
 from app.models.xray_images import XrayImage
 from app.models.ai_analysis_results import AiAnalysisResult
-from app.schemas.pneumonia_schemas import PneumoniaPredictionResponse, AiAnalysisResultResponse
+from app.schemas.pneumonia_schemas import PneumoniaPredictionResponse
+from app.schemas.patient_record_schemas import AiAnalysisResultResponse
+from app.core.auth.jwt import get_current_user
+from app.models.users import User
 from worker.model import predict_pneumonia, generate_heatmap
 
 router = APIRouter(prefix="/api/v1", tags=["AI Pneumonia Prediction"])
@@ -81,9 +84,9 @@ async def get_valid_medical_record(
     return record
 
 
-async def get_valid_xray_image(
-    record: MedicalRecord = Depends(get_valid_medical_record),
-    db: AsyncSession = Depends(async_get_db)
+async def get_valid_xray_image_from_record(
+    record: MedicalRecord,
+    db: AsyncSession
 ) -> XrayImage:
     xray_result = await db.execute(
         select(XrayImage).where(XrayImage.record_id == record.id).order_by(XrayImage.id.desc())
@@ -102,48 +105,18 @@ async def get_valid_xray_image(
     return xray_image
 
 
-# ==========================================
-# API 엔드포인트 핸들러
-# ==========================================
-
-@router.post(
-    "/pneumonia/predict/upload",
-    summary="AI 폐렴 즉시 예측 API (업로드)",
-    response_model=PneumoniaPredictionResponse
-)
-async def predict_pneumonia_by_upload(
-    file: UploadFile = File(...)
-):
-    # 1. 포맷 확인
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in [".png", ".jpg", ".jpeg"]:
-        raise HTTPException(status_code=400, detail="지원되지 않는 이미지 포맷입니다. (PNG, JPG, JPEG만 허용)")
-
-    # 2. 임시 파일 구동 및 예측
-    with temp_upload_file(file) as temp_file_path:
-        prediction_result = safe_predict_pneumonia(
-            str(temp_file_path),
-            error_msg="이미지 분석 중 에러가 발생했습니다"
-        )
-
-    return {
-        "prediction": prediction_result["prediction"],
-        "confidence": prediction_result["confidence"] * 100,
-        "probability_normal": prediction_result["probability_normal"] * 100,
-        "probability_pneumonia": prediction_result["probability_pneumonia"] * 100
-    }
-
-
-@router.post(
-    "/medical-records/{record_id}/predict",
-    summary="AI 폐렴 예측 실행 API",
-    response_model=AiAnalysisResultResponse
-)
-async def predict_pneumonia_by_record(
-    record_id: int,
-    xray_image: XrayImage = Depends(get_valid_xray_image),
+async def get_valid_xray_image(
+    record: MedicalRecord = Depends(get_valid_medical_record),
     db: AsyncSession = Depends(async_get_db)
-):
+) -> XrayImage:
+    return await get_valid_xray_image_from_record(record, db)
+
+
+async def execute_pneumonia_prediction(
+    record_id: int,
+    xray_image: XrayImage,
+    db: AsyncSession
+) -> AiAnalysisResult:
     physical_path = BASE_DIR / xray_image.image_url.lstrip("/")
 
     # 1. 모델 예측 수행
@@ -185,6 +158,85 @@ async def predict_pneumonia_by_record(
     return analysis_result
 
 
+# ==========================================
+# API 엔드포인트 핸들러
+# ==========================================
+
+@router.post(
+    "/pneumonia/predict/upload",
+    summary="AI 폐렴 즉시 예측 API (업로드)",
+    response_model=PneumoniaPredictionResponse
+)
+async def predict_pneumonia_by_upload(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. 포맷 확인
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in [".png", ".jpg", ".jpeg"]:
+        raise HTTPException(status_code=400, detail="지원되지 않는 이미지 포맷입니다. (PNG, JPG, JPEG만 허용)")
+
+    # 2. 임시 파일 구동 및 예측
+    with temp_upload_file(file) as temp_file_path:
+        prediction_result = safe_predict_pneumonia(
+            str(temp_file_path),
+            error_msg="이미지 분석 중 에러가 발생했습니다"
+        )
+
+    return {
+        "prediction": prediction_result["prediction"],
+        "confidence": prediction_result["confidence"] * 100,
+        "probability_normal": prediction_result["probability_normal"] * 100,
+        "probability_pneumonia": prediction_result["probability_pneumonia"] * 100
+    }
+
+
+@router.post(
+    "/medical-records/{record_id}/predict",
+    summary="AI 폐렴 예측 실행 API",
+    response_model=AiAnalysisResultResponse
+)
+async def predict_pneumonia_by_record(
+    record_id: int,
+    xray_image: XrayImage = Depends(get_valid_xray_image),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db)
+):
+    return await execute_pneumonia_prediction(record_id, xray_image, db)
+
+
+@router.post(
+    "/pneumonia/predict",
+    summary="AI 폐렴 예측 실행 API (ID 또는 Patient ID 기반)",
+    response_model=AiAnalysisResultResponse
+)
+async def predict_pneumonia_api(
+    record_id: int | None = Query(None, description="진료 기록 ID"),
+    patient_id: int | None = Query(None, description="환자 ID"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db)
+):
+    if record_id is None and patient_id is None:
+        raise HTTPException(status_code=400, detail="record_id 또는 patient_id 중 하나는 필수입니다.")
+    
+    if record_id is not None:
+        record = await get_valid_medical_record(record_id, db)
+    else:
+        # patient_id 기반으로 가장 최근의 진료 기록을 조회
+        record_result = await db.execute(
+            select(MedicalRecord)
+            .where(MedicalRecord.patient_id == patient_id)
+            .order_by(MedicalRecord.id.desc())
+            .limit(1)
+        )
+        record = record_result.scalar_one_or_none()
+        if not record:
+            raise HTTPException(status_code=404, detail="해당 환자의 진료 기록이 존재하지 않습니다.")
+    
+    xray_image = await get_valid_xray_image_from_record(record, db)
+    return await execute_pneumonia_prediction(record.id, xray_image, db)
+
+
 @router.get(
     "/medical-records/{record_id}/analyses",
     summary="AI 폐렴 예측 결과 조회 API",
@@ -193,6 +245,7 @@ async def predict_pneumonia_by_record(
 async def get_pneumonia_result_by_record(
     record_id: int,
     record: MedicalRecord = Depends(get_valid_medical_record),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db)
 ):
     result_query = await db.execute(

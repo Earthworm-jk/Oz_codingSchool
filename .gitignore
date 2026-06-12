@@ -25,7 +25,7 @@ envs/
 # Local database files
 *.db
 
-# Media uploads and temp files
+# Uploaded runtime files
+media/xray_images/
 media/temp/
 media/heatmap/
-media/xray_images/
