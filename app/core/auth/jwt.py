@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
@@ -7,18 +6,9 @@ from sqlalchemy.future import select
 from app.core.db.databases import async_get_db
 from app.models.users import User 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from dotenv import load_dotenv
-from app.core.security import (
-    verify_password, 
-    create_access_token, 
-    create_refresh_token
-)
+from app.core.config import settings
 
-load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-     raise ValueError("SECRET_KEY가 .env 파일에 설정되지 않았습니다!")
-# print(f"DEBUG: [jwt.py]에서 사용 중인 SECRET_KEY 값: {SECRET_KEY}")
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 
 oauth2_scheme = HTTPBearer()
