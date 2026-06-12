@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.auth.jwt import get_current_user
 from app.core.db.databases import async_get_db
 from app.models.ai_analysis_results import AiAnalysisResult
 from app.models.medical_records import MedicalRecord
@@ -108,6 +109,7 @@ async def save_xray_image(file: UploadFile, record_id: int) -> str:
 @router.post("/patients", response_model=PatientResponse, summary="환자 등록 API")
 async def create_patient_handler(
     body: PatientCreateRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     patient = Patient(
@@ -128,6 +130,7 @@ async def get_patients_handler(
     gender: str | None = Query(default=None, description="성별 필터"),
     min_age: int | None = Query(default=None, ge=0, description="최소 나이"),
     max_age: int | None = Query(default=None, ge=0, description="최대 나이"),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     stmt = select(Patient).order_by(Patient.id)
@@ -152,6 +155,7 @@ async def get_patients_handler(
 @router.get("/patients/{patient_id}", response_model=PatientResponse, summary="환자 상세 조회 API")
 async def get_patient_handler(
     patient_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     patient = await get_patient_or_404(db, patient_id)
@@ -162,6 +166,7 @@ async def get_patient_handler(
 async def update_patient_handler(
     patient_id: int,
     body: PatientUpdateRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     update_data = body.model_dump(exclude_unset=True)
@@ -182,6 +187,7 @@ async def update_patient_handler(
 @router.delete("/patients/{patient_id}", summary="환자 삭제 API")
 async def delete_patient_handler(
     patient_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     patient = await get_patient_or_404(db, patient_id)
@@ -203,7 +209,7 @@ async def create_medical_record_handler(
     symptoms: str = Form(...),
     xray_image: UploadFile | None = File(default=None),
     shooting_datetime: datetime | None = Form(default=None),
-    uploader_id: int | None = Form(default=None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     await get_patient_or_404(db, patient_id)
@@ -213,11 +219,6 @@ async def create_medical_record_handler(
         raise HTTPException(status_code=400, detail="증상은 필수 입력 항목입니다.")
     await ensure_unique_chart_number(db, chart_number)
 
-    if xray_image is not None and uploader_id is not None:
-        uploader = await db.get(User, uploader_id)
-        if uploader is None:
-            raise HTTPException(status_code=404, detail="존재하지 않는 업로더 사용자입니다.")
-
     record = MedicalRecord(
         patient_id=patient_id,
         chart_number=chart_number.strip(),
@@ -226,13 +227,12 @@ async def create_medical_record_handler(
     db.add(record)
     await db.flush()
 
-    # User API 병합 후에는 uploader_id Form 대신 Depends(get_current_user)로 교체합니다.
-    if xray_image is not None and uploader_id is not None:
+    if xray_image is not None:
         image_url = await save_xray_image(xray_image, record.id)
         db.add(
             XrayImage(
                 record_id=record.id,
-                uploader_id=uploader_id,
+                uploader_id=current_user.id,
                 image_url=image_url,
                 shooting_datetime=shooting_datetime or datetime.now(UTC),
             )
@@ -250,6 +250,7 @@ async def create_medical_record_handler(
 )
 async def get_patient_medical_records_handler(
     patient_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     await get_patient_or_404(db, patient_id)
@@ -269,6 +270,7 @@ async def get_patient_medical_records_handler(
 )
 async def get_medical_record_handler(
     record_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     record = await get_record_or_404(db, record_id)
@@ -283,6 +285,7 @@ async def get_medical_record_handler(
 async def update_medical_record_handler(
     record_id: int,
     body: MedicalRecordUpdateRequest,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     update_data = body.model_dump(exclude_unset=True)
@@ -308,6 +311,7 @@ async def update_medical_record_handler(
 )
 async def get_medical_record_analyses_handler(
     record_id: int,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
     await get_record_or_404(db, record_id)
