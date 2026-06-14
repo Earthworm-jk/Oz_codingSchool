@@ -11,7 +11,7 @@ from app.apis.practice_apis import router as practice_router
 from app.apis.patient_record_apis import router as patient_record_router
 from app.apis.pneumonia_apis import router as pneumonia_router
 
-from app.apis.v1 import users, auth, profile, me  # 이 부분을 추가하세요 (경로는 실제 파일 위치에 맞춰주세요)
+from app.apis.v1 import admin, auth, me, profile, users  # 이 부분을 추가하세요 (경로는 실제 파일 위치에 맞춰주세요)
 
 app = FastAPI()
 
@@ -23,6 +23,7 @@ app.include_router(pneumonia_router)
 # 새로 만든 실전용 라우터 추가!
 app.include_router(users.router, prefix="/api/v1", tags=["Users"])
 app.include_router(auth.router, prefix="/api/v1/users", tags=["Auth"])
+app.include_router(admin.router)
 app.include_router(profile.router)
 app.include_router(me.router, prefix="/api/v1/users", tags=["me"])
 BASE_DIR = Path(__file__).resolve().parent.parent

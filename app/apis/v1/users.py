@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func
 from sqlalchemy.future import select
 from app.core.security import get_password_hash
 from app.models.users import User
@@ -7,6 +8,13 @@ from app.schemas.user import UserCreate, UserRead
 from app.core.db.databases import async_get_db as get_db# DB 세션 가져오기
 from app.utils.validators import validate_nationality_names, validate_password, validate_employee_number
 router = APIRouter()
+
+@router.get("/users/check-email", summary="이메일 중복 확인")
+async def check_email(email: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).filter(User.email == email))
+    if result.scalars().first():
+        raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
+    return {"available": True}
 
 @router.post("/users/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED,summary="사용자 회원가입")
 async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -44,6 +52,12 @@ async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db))
     
     # 비밀번호 해싱
     user_data["hashed_password"] = get_password_hash(raw_password)
+
+    admin_count_result = await db.execute(
+        select(func.count(User.id)).where(User.role == "admin")
+    )
+    admin_count = admin_count_result.scalar_one()
+    user_data["role"] = "admin" if admin_count == 0 else "pending"
     
     # 7. DB 저장
     try:

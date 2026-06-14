@@ -2,14 +2,14 @@
 
 ## 1. 문서 목적
 
-이 문서는 7일차 미션인 `프론트 템플릿코드에 API 연결하기`를 진행하기 전에, 현재 프론트엔드 코드가 기대하는 API 형태를 미리 정리하기 위한 문서입니다.
+이 문서는 7일차 미션인 `프론트 템플릿코드에 API 연결하기`를 진행하면서, 현재 프론트엔드 코드와 FastAPI API가 어떤 방식으로 연결되어 있는지 정리하기 위한 문서입니다.
 
-아직 User API와 폐렴 예측 API가 개발 중이므로, 이 문서에서는 실제 연결 코드를 확정하지 않고 다음 항목만 정리합니다.
+User API, 환자/진료기록 API, 폐렴 예측 API가 `dev`에 병합된 뒤의 실제 연결 상태를 기준으로 다음 항목을 정리합니다.
 
 - 현재 프론트 코드가 호출하고 있는 API 주소
 - API별 요청 형식과 응답에서 필요한 필드
-- 담당 API가 dev에 병합될 때 확인해야 할 체크리스트
-- 환자 관리 및 진료 기록 API의 예상 명세
+- 프론트 화면에서 확인해야 하는 테스트 흐름
+- 남아있는 주의사항과 추후 개선 포인트
 
 ## 2. 현재 프론트 코드 구조
 
@@ -37,9 +37,9 @@ flowchart TD
     G --> H["pages.js가 화면에 결과 표시"]
 ```
 
-## 4. 담당 API 병합 전 공통 확인사항
+## 4. 프론트 연결 공통 확인사항
 
-각 API 담당자는 PR 설명 또는 코멘트에 아래 정보를 같이 남기면 프론트 연결이 쉬워집니다.
+프론트에서 API를 연결할 때는 각 API별로 아래 항목을 확인합니다.
 
 | 항목 | 설명 |
 | --- | --- |
@@ -51,18 +51,16 @@ flowchart TD
 | Response Body | 프론트에서 사용할 필드 이름 |
 | Swagger 테스트 결과 | 성공/실패 케이스 확인 여부 |
 
-## 5. User API 연결 준비
+## 5. User API 연결 상태
 
-User API는 팀원 담당 API가 최종 dev에 병합된 뒤 실제 연결을 확정합니다.
-
-현재 프론트가 기대하는 User API는 다음과 같습니다.
+현재 프론트가 호출하는 User API는 다음과 같습니다.
 
 | 화면/기능 | 프론트 함수 | Method | 기대 Endpoint | 요청 형식 | 비고 |
 | --- | --- | --- | --- | --- | --- |
-| 이메일 중복 확인 | `apis.checkEmail(email)` | `GET` | `/api/v1/users/check-email?email=...` | Query | 현재 코드는 임시로 `/practice_api/users/check-email`을 호출 중이므로 User API 병합 후 수정 필요 |
+| 이메일 중복 확인 | `apis.checkEmail(email)` | `GET` | `/api/v1/users/check-email?email=...` | Query | 실제 User DB 기준으로 중복 여부 확인 |
 | 회원가입 | `apis.signup(userData)` | `POST` | `/api/v1/users/signup` | JSON | 프론트는 `name`을 보내지 않고 `last_name`, `first_name`, `middle_name`을 보냄 |
 | 로그인 | `apis.login(email, password)` | `POST` | `/api/v1/users/login` | FormData | 응답에 `access_token` 필요 |
-| 토큰 갱신 | `apis.refresh()` | `POST` | `/api/v1/users/refresh` | Cookie 또는 JSON | 구현 방식 확정 필요 |
+| 토큰 갱신 | `apis.refresh()` | `POST` | `/api/v1/users/refresh` | Cookie 또는 JSON | 현재 서버 라우터 미구현. 이번 화면 테스트는 토큰 만료 전 흐름 기준으로 확인 |
 | 로그아웃 | `apis.logout()` | `POST` | `/api/v1/users/logout` | Header | 토큰 기반 처리 방식 확정 필요 |
 | 내 정보 조회 | `apis.getMe()` | `GET` | `/api/v1/users/me` | Header | `state.user` 갱신에 사용 |
 | 내 정보 수정 | `apis.updateMe(userData)` | `PATCH` | `/api/v1/users/me` | JSON | 부서, 전화번호 수정 |
@@ -70,6 +68,14 @@ User API는 팀원 담당 API가 최종 dev에 병합된 뒤 실제 연결을 �
 | 회원 탈퇴 | `apis.deleteMe()` | `DELETE` | `/api/v1/users/me` | Header | 구현 범위 확인 필요 |
 | 관리자 유저 목록 | `apis.adminGetUsers(params)` | `GET` | `/api/v1/admin/users` | Query | 관리자 권한 필요 |
 | 관리자 권한 수정 | `apis.adminUpdateUserRole(roleData)` | `PATCH` | `/api/v1/admin/users/role` | JSON | 관리자 권한 필요 |
+
+### 관리자 승인 흐름
+
+회원가입한 사용자는 기본적으로 `pending` 권한을 받으며, `pending` 사용자는 환자/진료기록/폐렴 예측 화면에 접근할 수 없습니다.
+
+도커 배포처럼 새 DB에서 처음 앱을 실행하는 상황을 고려하여, DB에 `admin` 권한 사용자가 한 명도 없을 때 가입한 첫 사용자는 자동으로 `admin` 권한을 받도록 처리합니다.
+
+이후 가입한 사용자는 `pending` 상태가 되며, 첫 관리자 계정으로 로그인한 뒤 `회원 관리` 화면에서 `staff` 또는 `admin`으로 권한을 변경합니다.
 
 ### User API 응답에서 프론트가 기대하는 필드
 
@@ -129,16 +135,16 @@ User API는 팀원 담당 API가 최종 dev에 병합된 뒤 실제 연결을 �
 
 주의: DB 모델의 컬럼명은 `patients.phone`이지만, 프론트 응답 필드는 `phone_number`를 기대합니다. 백엔드에서 응답 스키마로 `phone`을 `phone_number`로 변환해주면 프론트 수정이 줄어듭니다.
 
-## 7. 진료 기록 API 연결 준비
+## 7. 진료 기록 API 연결 상태
 
-진료 기록 API는 `feature/patient-record-api`에서 작성한 구현 기준으로 미리 정리합니다.
+진료 기록 API는 인증된 사용자 기준으로 동작합니다. 프론트는 `uploader_id`를 직접 보내지 않고, 백엔드에서 토큰을 통해 현재 로그인 사용자를 확인합니다.
 
 | 화면/기능 | 프론트 함수 | Method | Endpoint | 요청 형식 | 응답에서 필요한 필드 |
 | --- | --- | --- | --- | --- | --- |
 | 진료 기록 등록 | `apis.createMedicalRecord(formData)` | `POST` | `/api/v1/medical-records` | `multipart/form-data` | 생성된 진료 기록 |
 | 환자별 진료 기록 조회 | `apis.getPatientMedicalRecords(patientId)` | `GET` | `/api/v1/patients/{patient_id}/medical-records` | Path | 진료 기록 배열 |
 | 진료 기록 상세 조회 | `apis.getMedicalRecord(recordId)` | `GET` | `/api/v1/medical-records/{record_id}` | Path | 진료 기록 1개 |
-| 진료 기록 수정 | 미연결 | `PATCH` | `/api/v1/medical-records/{record_id}` | JSON | 수정된 진료 기록 |
+| 진료 기록 수정 | 미연결 | `PATCH` | `/api/v1/medical-records/{record_id}` | JSON | 현재 프론트 화면에는 수정 버튼이 없음 |
 | 진료 기록별 AI 결과 조회 | `apis.getMedicalRecordAnalyses(recordId)` | `GET` | `/api/v1/medical-records/{record_id}/analyses` | Path | AI 분석 결과 배열 |
 
 ### 진료 기록 등록 FormData
@@ -152,9 +158,9 @@ User API는 팀원 담당 API가 최종 dev에 병합된 뒤 실제 연결을 �
 | `symptoms` | Y | 증상 |
 | `xray_image` | Y | 업로드 이미지 파일 |
 | `shooting_datetime` | N | 현재 프론트에는 촬영 일시 입력란이 없음 |
-| `uploader_id` | N | User API 인증 연결 후 토큰에서 사용자 정보를 가져오는 방향 추천 |
+| `uploader_id` | N | 백엔드에서 `Depends(get_current_user)`로 현재 로그인 사용자를 저장 |
 
-User API가 완성되면 `uploader_id`를 프론트에서 직접 보내기보다 백엔드에서 `Depends(get_current_user)`로 현재 로그인 사용자를 확인해 저장하는 방향이 좋습니다.
+현재 구현은 `uploader_id`를 프론트에서 직접 보내지 않는 방향으로 정리되어 있습니다.
 
 ### 진료 기록 응답에서 프론트가 기대하는 필드
 
@@ -171,16 +177,15 @@ User API가 완성되면 `uploader_id`를 프론트에서 직접 보내기보다
 }
 ```
 
-## 8. 폐렴 예측 API 연결 준비
+## 8. 폐렴 예측 API 연결 상태
 
-폐렴 예측 API는 팀원 담당 API가 dev에 병합된 뒤 실제 endpoint와 요청 형식을 확정합니다.
-
-현재 프론트가 기대하는 기본 형태는 다음과 같습니다.
+현재 프론트가 호출하는 폐렴 예측 API는 다음과 같습니다.
 
 | 화면/기능 | 프론트 함수 | Method | 기대 Endpoint | 요청 형식 | 비고 |
 | --- | --- | --- | --- | --- | --- |
 | 폐렴 예측 실행 | `apis.predictPneumonia(recordId)` | `POST` | `/api/v1/medical-records/{record_id}/predict` | Path | 진료 기록에 연결된 X-Ray 이미지 사용 |
 | 예측 결과 조회 | `apis.getMedicalRecordAnalyses(recordId)` | `GET` | `/api/v1/medical-records/{record_id}/analyses` | Path | 진료 상세 화면에서 표시 |
+| 환자별 예측 결과 조회 | `apis.getPatientPneumoniaAnalyses(patientId)` | `GET` | `/api/v1/patients/{patient_id}/pneumonia/analyses` | Path | 같은 환자의 여러 진료기록/X-Ray 경과 비교에 사용 |
 
 ### AI 분석 결과 응답에서 프론트가 기대하는 필드
 
@@ -191,15 +196,17 @@ User API가 완성되면 `uploader_id`를 프론트에서 직접 보내기보다
     "record_id": 1,
     "is_pneumonia": true,
     "confidence": 93.24,
-    "heatmap_url": "/media/heatmaps/result_1.png",
-    "ai_model": "pneumonia-model-v1",
+    "heatmap_url": "/media/heatmap/record_1_abcd1234.png",
+    "ai_model": "SimpleCNN",
+    "xray_image_url": "/media/xray_images/record_1.png",
+    "chart_number": "CHART-20260613-001",
     "created_at": "2026-06-09T10:10:00",
     "updated_at": "2026-06-09T10:10:00"
   }
 ]
 ```
 
-주의: `static/pages.js`는 `confidence`를 그대로 `%`와 함께 표시합니다. 백엔드가 `0.93`으로 내려주면 화면에는 `0.93%`로 보일 수 있으므로, `93.24`처럼 퍼센트 값으로 내려줄지, 프론트에서 변환할지 미리 정해야 합니다.
+주의: 현재 폐렴 예측 응답은 `confidence`를 `0~100` 범위의 퍼센트 값으로 반환하며, 프론트는 이 값을 그대로 `%`와 함께 표시합니다.
 
 ## 9. API 병합 후 실제 연결 순서
 
@@ -233,11 +240,10 @@ flowchart TD
 
 | 항목 | 결정 필요 내용 |
 | --- | --- |
-| User API endpoint | 설계서 기준 `/api/v1/users/...`로 맞출지 최종 확인 |
-| 이메일 중복 확인 | `/practice_api` 임시 호출을 User API로 교체 |
-| 토큰 저장 방식 | Access Token은 현재 `localStorage` 사용, Refresh Token은 구현 방식 확인 필요 |
+| User API endpoint | 현재 프론트와 백엔드가 `/api/v1/users/...` 기준으로 연결됨 |
+| 이메일 중복 확인 | `/api/v1/users/check-email`로 실제 User DB 기준 확인 |
+| 토큰 저장 방식 | Access Token은 현재 `localStorage` 사용. Refresh Token 재발급 API는 추후 정리 필요 |
 | 환자 삭제 정책 | 진료 기록이 있는 환자 삭제 제한 여부 |
-| 진료 기록 이미지 | `uploader_id`를 직접 보낼지, 인증 사용자로 대체할지 |
-| 폐렴 예측 confidence | `0~1` 값인지 `0~100` 퍼센트 값인지 |
+| 진료 기록 이미지 | 현재는 인증 사용자 기준으로 `uploader_id` 저장 |
+| 폐렴 예측 confidence | 현재는 `0~100` 퍼센트 값으로 표시 |
 | 촬영 일시 | 프론트에 입력 필드를 추가할지, 백엔드에서 현재 시각 기본값을 쓸지 |
-
