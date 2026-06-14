@@ -56,3 +56,7 @@ class UserUpdate(BaseModel):
 class UserPasswordUpdate(BaseModel):
     current_password: str = Field(..., description="현재 사용 중인 비밀번호")
     new_password: str = Field(..., min_length=8, description="변경할 새로운 비밀번호")  
+
+class UserRoleUpdate(BaseModel):
+    user_id: int
+    new_role: str = Field(..., pattern=r"^(pending|staff|admin)$")

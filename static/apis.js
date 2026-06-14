@@ -128,7 +128,7 @@ const apis = {
      * 이메일 중복 확인
      */
     async checkEmail(email) {
-        return await this.request(`/practice_api/users/check-email?email=${encodeURIComponent(email)}`, {
+        return await this.request(`/users/check-email?email=${encodeURIComponent(email)}`, {
             method: 'GET'
         }, true);
     },
