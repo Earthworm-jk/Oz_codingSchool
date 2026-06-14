@@ -29,6 +29,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv ./.venv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY pyproject.toml uv.lock ./
 COPY app ./app
 COPY static ./static
 COPY alembic.ini ./

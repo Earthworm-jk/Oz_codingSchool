@@ -38,4 +38,5 @@ README.md
 
 # Runtime upload/output files
 media/
+worker/models/
 *.db
