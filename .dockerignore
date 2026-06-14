@@ -1,0 +1,41 @@
+# Environment files
+.env
+.env.*
+*.env
+envs/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments and dependency caches
+.venv/
+.uv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Docker-related files
+Dockerfile
+**/Dockerfile
+docker-compose*.yml
+.dockerignore
+**/.dockerignore
+
+# Git and IDE settings
+.git/
+.gitignore
+.vscode/
+.idea/
+settings.json
+
+# Documentation and local-only files
+docs/
+README.md
+
+# Runtime upload/output files
+media/
+*.db
