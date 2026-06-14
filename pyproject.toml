@@ -13,8 +13,15 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "pydantic-settings>=2.13.1",
     "python-jose[cryptography]>=3.5.0",
+    "redis>=7.1.0",
     "sqlalchemy[asyncio]>=2.0.49",
+    "uuid6>=2025.0.1",
+]
+
+[project.optional-dependencies]
+worker = [
+    "numpy>=2.3.5",
+    "pillow>=12.0.0",
     "torch>=2.12.0",
     "torchvision>=0.27.0",
-    "uuid6>=2025.0.1",
 ]

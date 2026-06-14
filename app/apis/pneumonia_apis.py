@@ -1,7 +1,6 @@
 import os
 import shutil
 import tempfile
-import uuid
 from pathlib import Path
 from contextlib import contextmanager
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
@@ -18,7 +17,7 @@ from app.schemas.patient_record_schemas import AiAnalysisResultResponse
 from app.core.auth.jwt import get_current_user
 from app.models.users import User
 from app.models.patients import Patient
-from worker.model import predict_pneumonia, generate_heatmap
+from app.services.redis_prediction_queue import request_pneumonia_prediction
 
 router = APIRouter(prefix="/api/v1", tags=["AI Pneumonia Prediction"])
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # 프로젝트 루트 디렉토리
@@ -50,16 +49,6 @@ def temp_upload_file(file: UploadFile):
     finally:
         if temp_path.exists():
             os.remove(temp_path)
-
-
-def safe_predict_pneumonia(image_path: str, error_msg: str = "AI 분석 중 오류가 발생했습니다") -> dict:
-    """예측 시 발생하는 일반 예외를 HTTPException 500으로 자동 변환해주는 헬퍼"""
-    try:
-        return predict_pneumonia(image_path)
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{error_msg}: {str(e)}")
 
 
 def safe_copy_file(src: Path, dst: Path):
@@ -118,38 +107,38 @@ async def execute_pneumonia_prediction(
     xray_image: XrayImage,
     db: AsyncSession
 ) -> AiAnalysisResult:
+    existing_result = await db.execute(
+        select(AiAnalysisResult)
+        .where(
+            AiAnalysisResult.record_id == record_id,
+            AiAnalysisResult.ai_model == "SimpleCNN",
+        )
+        .order_by(AiAnalysisResult.created_at.desc())
+        .limit(1)
+    )
+    existing_analysis = existing_result.scalars().first()
+    if existing_analysis:
+        existing_analysis.xray_image_url = xray_image.image_url
+        record_result = await db.execute(select(MedicalRecord.chart_number).where(MedicalRecord.id == record_id))
+        existing_analysis.chart_number = record_result.scalar()
+        return existing_analysis
+
     physical_path = BASE_DIR / xray_image.image_url.lstrip("/")
+    prediction_result = await request_pneumonia_prediction(
+        physical_path,
+        record_id=record_id,
+        create_heatmap=True,
+    )
 
-    # 1. 모델 예측 수행
-    prediction_result = safe_predict_pneumonia(str(physical_path))
-
-    # 2. 결과 저장
+    # AI worker 결과 저장
     is_pneumonia = prediction_result["prediction"] == "PNEUMONIA"
     confidence_val = Decimal(f"{prediction_result['confidence'] * 100:.2f}")
-
-    # Heatmap 생성 및 저장 (Grad-CAM 렌더링)
-    heatmap_dir = BASE_DIR / "media" / "heatmap"
-    os.makedirs(heatmap_dir, exist_ok=True)
-    
-    unique_suffix = uuid.uuid4().hex[:8]
-    heatmap_filename = f"record_{record_id}_{unique_suffix}.png"
-    heatmap_path = heatmap_dir / heatmap_filename
-    
-    try:
-        generate_heatmap(str(physical_path), str(heatmap_path))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"히트맵 생성에 실패했습니다. (사유: {str(e)})"
-        )
-    
-    heatmap_url = f"/media/heatmap/{heatmap_filename}"
 
     analysis_result = AiAnalysisResult(
         record_id=record_id,
         is_pneumonia=is_pneumonia,
         confidence=confidence_val,
-        heatmap_url=heatmap_url,
+        heatmap_url=prediction_result["heatmap_url"],
         ai_model="SimpleCNN"
     )
     db.add(analysis_result)
@@ -185,9 +174,9 @@ async def predict_pneumonia_by_upload(
 
     # 2. 임시 파일 구동 및 예측
     with temp_upload_file(file) as temp_file_path:
-        prediction_result = safe_predict_pneumonia(
-            str(temp_file_path),
-            error_msg="이미지 분석 중 에러가 발생했습니다"
+        prediction_result = await request_pneumonia_prediction(
+            temp_file_path,
+            create_heatmap=False,
         )
 
     return {
@@ -375,7 +364,6 @@ async def get_pneumonia_results_by_patient(
             ))
 
     return response_list
-
 
 
 
