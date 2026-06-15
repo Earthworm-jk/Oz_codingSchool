@@ -77,15 +77,18 @@ REDIS_URL=redis://redis:6379/0
 
 | 구분 | 이메일 | 비밀번호 | 비고 |
 | --- | --- | --- | --- |
-| 관리자 | `testadmin@example.com` | `Testadmin1234!` | fresh DB에서 첫 가입 시 자동 admin |
-| 일반 사용자 | `teststaff@example.com` | `Teststaff1234!` | 가입 후 관리자 승인 필요 |
+| 관리자 | `testadmin@example.com` | 별도 제출 채널로 전달 | fresh DB에서 첫 가입 시 자동 admin |
+| 일반 사용자 | `teststaff@example.com` | 별도 제출 채널로 전달 | 가입 후 관리자 승인 필요 |
+
+공개 저장소에는 테스트 계정의 실제 비밀번호를 작성하지 않습니다.  
+심사용 비밀번호는 LMS 제출 코멘트, 비공개 노션 문서 등 별도 채널로 전달합니다.
 
 회원가입 입력 예시:
 
 ```json
 {
   "email": "testadmin@example.com",
-  "password": "Testadmin1234!",
+  "password": "<별도 전달 비밀번호>",
   "nationality": "korean",
   "last_name": "테스트",
   "first_name": "관리자",
@@ -100,7 +103,7 @@ REDIS_URL=redis://redis:6379/0
 ```json
 {
   "email": "teststaff@example.com",
-  "password": "Teststaff1234!",
+  "password": "<별도 전달 비밀번호>",
   "nationality": "korean",
   "last_name": "테스트",
   "first_name": "직원",
