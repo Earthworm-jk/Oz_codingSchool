@@ -128,7 +128,7 @@ const apis = {
      * 이메일 중복 확인
      */
     async checkEmail(email) {
-        return await this.request(`/practice_api/users/check-email?email=${encodeURIComponent(email)}`, {
+        return await this.request(`/users/check-email?email=${encodeURIComponent(email)}`, {
             method: 'GET'
         }, true);
     },
@@ -314,6 +314,13 @@ const apis = {
      */
     async getMedicalRecordAnalyses(recordId) {
         return await this.request(`/medical-records/${recordId}/analyses`);
+    },
+
+    /**
+     * 환자별 AI 예측 결과 목록 조회
+     */
+    async getPatientPneumoniaAnalyses(patientId) {
+        return await this.request(`/patients/${patientId}/pneumonia/analyses`);
     },
 
     // --- Admin ---

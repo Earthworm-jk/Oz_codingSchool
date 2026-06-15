@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alembic DB 마이그레이션 미션 가이드</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --paper: #ffffff;
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d8dee9;
+      --dark: #111827;
+      --blue: #2563eb;
+      --green: #16803c;
+      --orange: #c05621;
+      --red: #b42318;
+      --violet: #6847b8;
+      --blue-soft: #edf5ff;
+      --green-soft: #edf8f2;
+      --orange-soft: #fff4e8;
+      --red-soft: #fff1f0;
+      --violet-soft: #f4f0ff;
+      --gray-soft: #f2f4f7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.68;
+    }
+
+    header {
+      background: var(--dark);
+      color: white;
+      padding: 42px 24px;
+    }
+
+    header .wrap,
+    main {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #bfdbfe;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.16;
+      letter-spacing: 0;
+    }
+
+    header p {
+      max-width: 860px;
+      color: #d1d5db;
+      margin: 16px 0 0;
+      font-size: 17px;
+    }
+
+    main {
+      padding: 28px 0 64px;
+    }
+
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 26px;
+      margin: 18px 0;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 22px 0 8px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 8px 0;
+    }
+
+    a {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    code {
+      background: #f2f4f7;
+      border: 1px solid #e4e7ec;
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .94em;
+    }
+
+    pre {
+      overflow-x: auto;
+      background: #101828;
+      color: #f8fafc;
+      border-radius: 8px;
+      padding: 15px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    ul,
+    ol {
+      margin: 10px 0;
+      padding-left: 22px;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .summary-card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 120px;
+    }
+
+    .summary-card strong {
+      display: block;
+      margin-bottom: 4px;
+      color: white;
+    }
+
+    .summary-card span {
+      color: #d1d5db;
+      font-size: 14px;
+    }
+
+    .callout {
+      border-left: 5px solid var(--blue);
+      background: var(--blue-soft);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 14px 0;
+    }
+
+    .callout.warning {
+      border-left-color: var(--orange);
+      background: var(--orange-soft);
+    }
+
+    .callout.danger {
+      border-left-color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .callout.good {
+      border-left-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 130px;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-right: 6px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .blue { color: var(--blue); background: var(--blue-soft); border-color: #bfdbfe; }
+    .green { color: var(--green); background: var(--green-soft); border-color: #b9e6ca; }
+    .orange { color: var(--orange); background: var(--orange-soft); border-color: #fed7aa; }
+    .red { color: var(--red); background: var(--red-soft); border-color: #fecdca; }
+    .violet { color: var(--violet); background: var(--violet-soft); border-color: #d9d0ff; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+      margin: 18px 0;
+    }
+
+    .flow-step {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+      min-height: 150px;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: ">";
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--dark);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 900;
+      z-index: 2;
+    }
+
+    .flow-step b {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .flow-step span {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .roadmap {
+      display: grid;
+      gap: 12px;
+      counter-reset: step;
+    }
+
+    .roadmap-item {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 14px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .roadmap-item::before {
+      counter-increment: step;
+      content: counter(step);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--dark);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .roadmap-item h3 {
+      margin: 0 0 6px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--gray-soft);
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .erd {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .table-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .table-card h3 {
+      margin: 0;
+      padding: 10px 12px;
+      background: #315f9c;
+      color: white;
+      font-size: 16px;
+    }
+
+    .table-card ul {
+      margin: 0;
+      padding: 12px 14px 14px 30px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    footer {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto 48px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .summary,
+      .grid-2,
+      .grid-3,
+      .flow,
+      .erd {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step:not(:last-child)::after {
+        content: "v";
+        right: auto;
+        left: 22px;
+        top: auto;
+        bottom: -18px;
+        transform: none;
+      }
+
+      .roadmap-item {
+        grid-template-columns: 46px 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">DB Migration Mission Guide</p>
+      <h1>Alembic이 뭐고, 이번 과제에서 어떻게 쓰는가</h1>
+      <p>
+        이 문서는 팀원이 같은 그림을 보고 움직일 수 있도록 Alembic의 역할, SQLAlchemy 모델과의 관계,
+        이번 ERD 미션 진행 순서를 초보자 기준으로 정리한 가이드입니다.
+      </p>
+      <div class="summary">
+        <div class="summary-card">
+          <strong>SQLAlchemy Model</strong>
+          <span>Python 코드로 작성한 DB 테이블 설계도입니다.</span>
+        </div>
+        <div class="summary-card">
+          <strong>Alembic</strong>
+          <span>모델 변경 내용을 DB에 반영하는 migration 도구입니다.</span>
+        </div>
+        <div class="summary-card">
+          <strong>Migration File</strong>
+          <span>DB에 실행할 변경 작업을 기록한 버전 파일입니다.</span>
+        </div>
+        <div class="summary-card">
+          <strong>DB Viewer</strong>
+          <span>실제 DB에 테이블이 생겼는지 확인하는 도구입니다.</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. Alembic을 한 문장으로 이해하기</h2>
+      <p>
+        <strong>Alembic은 SQLAlchemy 모델의 변경 사항을 실제 데이터베이스 스키마에 반영하기 위한 버전 관리 도구</strong>입니다.
+      </p>
+      <div class="flow">
+        <div class="flow-step">
+          <span class="badge blue">설계</span>
+          <b>ERD</b>
+          <span>어떤 테이블과 컬럼이 필요한지 그림으로 정리합니다.</span>
+        </div>
+        <div class="flow-step">
+          <span class="badge violet">코드</span>
+          <b>SQLAlchemy Model</b>
+          <span>ERD를 Python 클래스로 옮깁니다.</span>
+        </div>
+        <div class="flow-step">
+          <span class="badge orange">기록</span>
+          <b>Migration 생성</b>
+          <span>Alembic이 모델과 DB 차이를 migration 파일로 만듭니다.</span>
+        </div>
+        <div class="flow-step">
+          <span class="badge green">반영</span>
+          <b>Upgrade</b>
+          <span>migration 파일의 내용을 실제 DB에 적용합니다.</span>
+        </div>
+        <div class="flow-step">
+          <span class="badge blue">검증</span>
+          <b>DB Viewer</b>
+          <span>테이블, 컬럼, 관계가 생겼는지 눈으로 확인합니다.</span>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>비유로 보면:</strong>
+        SQLAlchemy 모델은 건물 설계도, Alembic migration 파일은 공사 지시서, DB는 실제 건물입니다.
+        설계도만 고쳐서는 실제 건물이 바뀌지 않기 때문에 Alembic으로 DB에 반영해야 합니다.
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 왜 Alembic이 필요한가</h2>
+      <div class="grid-3">
+        <div class="mini-card">
+          <strong>DB 변경 이력 관리</strong>
+          <p>언제 어떤 테이블과 컬럼이 추가되었는지 파일로 남습니다.</p>
+        </div>
+        <div class="mini-card">
+          <strong>팀원 DB 상태 맞추기</strong>
+          <p>한 명이 만든 DB 변경 사항을 다른 팀원도 같은 명령으로 적용할 수 있습니다.</p>
+        </div>
+        <div class="mini-card">
+          <strong>배포 환경 반영</strong>
+          <p>로컬에서 만든 스키마를 서버 DB에도 같은 순서로 반영할 수 있습니다.</p>
+        </div>
+      </div>
+      <div class="callout warning">
+        <strong>중요:</strong>
+        SQLAlchemy 모델 파일을 작성했다고 해서 DB에 자동으로 테이블이 생기지는 않습니다.
+        실제 DB를 바꾸는 단계는 <code>alembic upgrade head</code>입니다.
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 이번 프로젝트에서 이미 준비된 것</h2>
+      <p>우리 프로젝트에는 Alembic을 새로 초기화하지 않아도 되는 기본 구성이 이미 있습니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>파일</th>
+              <th>역할</th>
+              <th>이번 미션에서 보는 포인트</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>pyproject.toml</code></td>
+              <td>Alembic, SQLAlchemy, asyncmy 의존성 관리</td>
+              <td><code>alembic</code>이 이미 설치 대상으로 포함되어 있습니다.</td>
+            </tr>
+            <tr>
+              <td><code>app/core/db/databases.py</code></td>
+              <td>DB 접속 주소, 엔진, 세션, <code>Base</code> 정의</td>
+              <td>모든 모델은 여기의 <code>Base</code>를 상속받아야 합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic/env.py</code></td>
+              <td>Alembic이 모델 정보를 읽고 DB에 접속하는 설정</td>
+              <td><code>target_metadata = Base.metadata</code>로 연결되어 있습니다.</td>
+            </tr>
+            <tr>
+              <td><code>app/models/__init__.py</code></td>
+              <td>모델들을 한 번에 import하는 입구</td>
+              <td>여기에 모델 import가 빠지면 autogenerate가 테이블을 못 볼 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic/versions/</code></td>
+              <td>migration 파일들이 저장되는 폴더</td>
+              <td>이번 미션에서 새 migration 파일이 생겨야 합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 이번 ERD를 모델로 옮기기</h2>
+      <p>첨부된 ERD 기준으로 작성할 테이블은 다음 5개입니다.</p>
+      <div class="erd">
+        <div class="table-card">
+          <h3>users</h3>
+          <ul>
+            <li>회원/의료진 계정 정보</li>
+            <li>email, hashed_password, name</li>
+            <li>gender, department, role</li>
+            <li>팀 확장 필드: nationality, first_name, last_name, middle_name, employee_number</li>
+            <li>xray_images의 uploader가 됩니다.</li>
+          </ul>
+        </div>
+        <div class="table-card">
+          <h3>patients</h3>
+          <ul>
+            <li>환자 기본 정보</li>
+            <li>name, age, gender, phone</li>
+            <li>medical_records와 연결됩니다.</li>
+          </ul>
+        </div>
+        <div class="table-card">
+          <h3>medical_records</h3>
+          <ul>
+            <li>환자 진료 기록</li>
+            <li>patient_id, chart_number, symptoms</li>
+            <li>xray_images, ai_analysis_results와 연결됩니다.</li>
+          </ul>
+        </div>
+        <div class="table-card">
+          <h3>xray_images</h3>
+          <ul>
+            <li>X-ray 이미지 정보</li>
+            <li>record_id, uploader_id, image_url</li>
+            <li>진료 기록과 업로더 계정을 참조합니다.</li>
+          </ul>
+        </div>
+        <div class="table-card">
+          <h3>ai_analysis_results</h3>
+          <ul>
+            <li>AI 분석 결과</li>
+            <li>record_id, is_pneumonia, confidence</li>
+            <li>분석 모델명과 heatmap URL을 저장합니다.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout good">
+        <strong>우리 팀 반영 방향:</strong>
+        팀에서 회원가입/API 확장 방향을 유지하기로 했으므로, ERD의 <code>users</code> 기본 구조에
+        국적, 이름 분리, 사번 필드를 추가해서 모델을 작성합니다. 즉, 과제 ERD를 기본 뼈대로 삼되
+        실제 회원가입 화면과 API가 보내는 데이터 구조까지 DB 모델에 맞춰주는 방식입니다.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>필드</th>
+              <th>추천 컬럼</th>
+              <th>이유</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>국적 구분</td>
+              <td><code>nationality = Column(Enum(...), nullable=False)</code></td>
+              <td>내국인/외국인에 따라 이름 입력 방식과 검증 메시지가 달라집니다.</td>
+            </tr>
+            <tr>
+              <td>이름 분리</td>
+              <td><code>last_name</code>, <code>first_name</code>, <code>middle_name</code></td>
+              <td>성/이름/미들네임을 분리해서 내국인과 외국인 이름 구조를 모두 표현합니다.</td>
+            </tr>
+            <tr>
+              <td>화면 표시용 이름</td>
+              <td><code>name</code></td>
+              <td>ERD의 기존 컬럼을 유지하되, 필요하면 서버에서 조합한 전체 이름을 저장하거나 표시용으로 사용할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td>중복 가입 방지</td>
+              <td><code>employee_number = Column(String(...), unique=True, nullable=False)</code></td>
+              <td>email 외에도 사번을 기준으로 중복 회원가입을 막을 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td>비밀번호 확인</td>
+              <td>DB 컬럼으로 저장하지 않음</td>
+              <td>비밀번호 확인값은 가입 요청 검증용입니다. DB에는 <code>hashed_password</code>만 저장하는 것이 맞습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>5. 실제 작업 순서</h2>
+      <div class="roadmap">
+        <div class="roadmap-item">
+          <div>
+            <h3>dev에서 feature 브랜치 생성</h3>
+            <p>DB 모델 작업은 별도 브랜치에서 진행합니다.</p>
+            <pre><code>git switch dev
+git pull origin dev
+git switch -c feature/db-models-migration</code></pre>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>모델 파일 생성</h3>
+            <p><code>app/models/</code> 아래에 테이블별 파일을 만듭니다.</p>
+            <pre><code>app/models/users.py
+app/models/patients.py
+app/models/medical_records.py
+app/models/xray_images.py
+app/models/ai_analysis_results.py</code></pre>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>각 모델 클래스 작성</h3>
+            <p>각 클래스는 <code>Base</code>를 상속하고, <code>__tablename__</code>과 컬럼을 정의합니다.</p>
+            <pre><code>class Patient(Base):
+    __tablename__ = "patients"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    name = Column(String(30), nullable=False)
+    age = Column(SmallInteger, nullable=False)</code></pre>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>모델 import 연결</h3>
+            <p><code>app/models/__init__.py</code>에서 만든 모델들을 import합니다. Alembic이 이 import를 통해 모델을 발견합니다.</p>
+            <pre><code>from app.models.users import User
+from app.models.patients import Patient
+from app.models.medical_records import MedicalRecord
+from app.models.xray_images import XrayImage
+from app.models.ai_analysis_results import AiAnalysisResult</code></pre>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>migration 파일 자동 생성</h3>
+            <p>모델과 현재 DB 상태를 비교해서 migration 파일을 만듭니다.</p>
+            <pre><code>uv run alembic revision --autogenerate -m "create medical schema"</code></pre>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>migration 파일 검토</h3>
+            <p>생성된 파일에서 의도한 테이블만 생성되는지 확인합니다.</p>
+            <ul>
+              <li><code>create_table("users", ...)</code>가 있는가</li>
+              <li><code>create_table("patients", ...)</code>가 있는가</li>
+              <li>외래키 <code>ForeignKey</code>가 맞게 생성되었는가</li>
+              <li>예상하지 못한 <code>drop_table</code>, <code>drop_column</code>이 없는가</li>
+            </ul>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>DB에 migration 적용</h3>
+            <p>검토가 끝나면 실제 DB에 스키마를 반영합니다.</p>
+            <pre><code>uv run alembic upgrade head</code></pre>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>DB Viewer로 확인</h3>
+            <p>MySQL DB에 접속해서 테이블, 컬럼, FK가 보이는지 확인하고 캡처합니다.</p>
+            <ul>
+              <li><code>users</code>, <code>patients</code>, <code>medical_records</code> 테이블 확인</li>
+              <li><code>xray_images</code>, <code>ai_analysis_results</code> 테이블 확인</li>
+              <li>외래키 관계가 보이는지 확인</li>
+            </ul>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div>
+            <h3>문서 작성 후 PR</h3>
+            <p><code>docs/3일차_db_migration.md</code>에 DB Viewer 캡처와 진행 내용을 정리한 뒤 PR을 올립니다.</p>
+            <pre><code>git add app/models alembic/versions docs/3일차_db_migration.md
+git commit -m "feat: add db models and migration"
+git push origin feature/db-models-migration</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. 자주 쓰는 Alembic 명령어</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>명령어</th>
+              <th>뜻</th>
+              <th>이번 과제에서 사용 여부</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>alembic init alembic</code></td>
+              <td>Alembic 기본 폴더와 설정 파일을 처음 생성합니다.</td>
+              <td>이미 설정되어 있으므로 보통 사용하지 않습니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic revision -m "message"</code></td>
+              <td>빈 migration 파일을 직접 만듭니다.</td>
+              <td>이번에는 자동 생성이 더 편합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic revision --autogenerate -m "message"</code></td>
+              <td>모델과 DB 차이를 비교해 migration 파일을 만듭니다.</td>
+              <td>사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic upgrade head</code></td>
+              <td>가장 최신 migration까지 DB에 적용합니다.</td>
+              <td>사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic downgrade -1</code></td>
+              <td>migration을 한 단계 되돌립니다.</td>
+              <td>실수 복구용입니다. 팀장/담당자와 상의 후 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic current</code></td>
+              <td>현재 DB가 어떤 migration 버전인지 확인합니다.</td>
+              <td>문제 확인 시 유용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alembic history</code></td>
+              <td>migration 이력을 확인합니다.</td>
+              <td>PR 리뷰 때 참고할 수 있습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <strong>우리 프로젝트에서는</strong>
+        명령 앞에 <code>uv run</code>을 붙이는 방식이 안전합니다.
+        예: <code>uv run alembic upgrade head</code>
+      </div>
+    </section>
+
+    <section>
+      <h2>7. 모델 작성 시 타입 매핑</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ERD 타입</th>
+              <th>SQLAlchemy 타입 예시</th>
+              <th>설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>integer</code></td>
+              <td><code>Integer</code></td>
+              <td>일반 정수 id 등에 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>bigint</code></td>
+              <td><code>BigInteger</code></td>
+              <td>큰 정수 id에 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>smallint</code></td>
+              <td><code>SmallInteger</code></td>
+              <td>나이처럼 작은 숫자에 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>varchar(30)</code></td>
+              <td><code>String(30)</code></td>
+              <td>길이 제한이 있는 문자열입니다.</td>
+            </tr>
+            <tr>
+              <td><code>text</code></td>
+              <td><code>Text</code></td>
+              <td>증상 설명처럼 긴 문자열에 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>datetime</code></td>
+              <td><code>DateTime</code></td>
+              <td>생성일, 수정일, 촬영일시에 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>bool</code>, <code>boolean</code></td>
+              <td><code>Boolean</code></td>
+              <td>폐렴 여부, 활성 여부 같은 참/거짓 값입니다.</td>
+            </tr>
+            <tr>
+              <td><code>decimal(5,2)</code></td>
+              <td><code>DECIMAL(5, 2)</code></td>
+              <td>AI confidence처럼 소수점 자릿수가 중요한 값입니다.</td>
+            </tr>
+            <tr>
+              <td><code>enum</code></td>
+              <td><code>Enum(...)</code></td>
+              <td>gender, department, role처럼 정해진 값 중 하나만 허용합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>8. PR 리뷰에서 확인할 것</h2>
+      <div class="grid-2">
+        <div class="mini-card">
+          <strong>모델 파일 확인</strong>
+          <ul>
+            <li>ERD의 5개 테이블이 모두 있는가</li>
+            <li>컬럼명과 타입이 ERD와 맞는가</li>
+            <li><code>nullable=False</code>가 필요한 곳에 있는가</li>
+            <li>unique 컬럼이 반영되었는가</li>
+          </ul>
+        </div>
+        <div class="mini-card">
+          <strong>관계 확인</strong>
+          <ul>
+            <li><code>patient_id</code>가 <code>patients.id</code>를 참조하는가</li>
+            <li><code>record_id</code>가 <code>medical_records.id</code>를 참조하는가</li>
+            <li><code>uploader_id</code>가 <code>users.id</code>를 참조하는가</li>
+          </ul>
+        </div>
+        <div class="mini-card">
+          <strong>migration 확인</strong>
+          <ul>
+            <li>새 migration 파일이 생성되었는가</li>
+            <li>의도한 테이블 생성만 들어있는가</li>
+            <li>불필요한 삭제 작업이 없는가</li>
+          </ul>
+        </div>
+        <div class="mini-card">
+          <strong>실행 결과 확인</strong>
+          <ul>
+            <li><code>alembic upgrade head</code>가 성공했는가</li>
+            <li>DB Viewer에서 테이블이 보이는가</li>
+            <li><code>docs/3일차_db_migration.md</code>에 캡처가 있는가</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>9. 흔한 실수와 해결법</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>상황</th>
+              <th>원인</th>
+              <th>해결</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>autogenerate 했는데 migration 파일이 비어 있음</td>
+              <td>모델이 import되지 않아 Alembic이 못 봄</td>
+              <td><code>app/models/__init__.py</code>에서 모든 모델을 import합니다.</td>
+            </tr>
+            <tr>
+              <td>DB 접속 오류</td>
+              <td>MySQL 컨테이너가 꺼져 있거나 <code>.env</code> 설정이 맞지 않음</td>
+              <td><code>docker compose up</code> 상태와 DB 환경변수를 확인합니다.</td>
+            </tr>
+            <tr>
+              <td>외래키 생성 오류</td>
+              <td>참조 테이블명 또는 컬럼 타입이 맞지 않음</td>
+              <td>부모 테이블 이름과 id 타입을 다시 맞춥니다.</td>
+            </tr>
+            <tr>
+              <td>예상치 못한 drop 코드가 생성됨</td>
+              <td>현재 DB와 모델 차이를 Alembic이 삭제로 판단함</td>
+              <td>migration 파일을 바로 적용하지 말고 팀원과 먼저 확인합니다.</td>
+            </tr>
+            <tr>
+              <td>팀원 DB에는 테이블이 없음</td>
+              <td>migration 파일만 pull 받고 upgrade를 실행하지 않음</td>
+              <td><code>uv run alembic upgrade head</code>를 각자 실행합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>10. 이번 미션 완료 조건 체크리스트</h2>
+      <div class="callout good">
+        아래 항목이 모두 확인되면 DB migration 미션은 완료된 것으로 볼 수 있습니다.
+      </div>
+      <ul>
+        <li><code>app/models/</code> 아래에 ERD 기준 모델 파일이 작성되어 있다.</li>
+        <li><code>app/models/__init__.py</code>에서 모델들이 import되어 있다.</li>
+        <li><code>alembic/versions/</code> 아래에 새 migration 파일이 있다.</li>
+        <li><code>uv run alembic upgrade head</code>가 성공했다.</li>
+        <li>DB Viewer에서 5개 테이블과 주요 관계를 확인했다.</li>
+        <li><code>docs/3일차_db_migration.md</code>에 DB 확인 이미지와 설명을 작성했다.</li>
+        <li>feature 브랜치에서 PR을 생성했고, 리뷰 후 <code>dev</code> 또는 과제 기준 브랜치로 merge했다.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>참고자료</h2>
+      <p>아래 자료에서 Alembic의 기본 개념, 초기화, revision 생성, upgrade 흐름을 참고했습니다.</p>
+      <ul>
+        <li><a href="https://wikidocs.net/175967#_2">WikiDocs: FastAPI와 Alembic 관련 설명</a></li>
+        <li><a href="https://devspoon.tistory.com/304">Devspoon: FastAPI, SQLAlchemy, Alembic 사용 흐름</a></li>
+        <li><a href="https://metamong-data.tistory.com/56">Metamong Data: Alembic migration 정리</a></li>
+      </ul>
+      <p class="muted">
+        참고자료는 일반적인 Alembic 사용법을 설명하고, 이 문서는 현재 팀 프로젝트 구조에 맞게 명령과 주의사항을 보충했습니다.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    작성 목적: 3일차 DB 모델링 및 Alembic migration 미션을 팀원이 같은 기준으로 진행하기 위한 안내 문서
+  </footer>
+</body>
+</html>

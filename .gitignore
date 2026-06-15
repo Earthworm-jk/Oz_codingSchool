@@ -7,6 +7,8 @@ wheels/
 *.egg-info
 
 # IDE settings
+.DS_Store
+
 # pycharm
 .idea
 # VSCode
@@ -21,3 +23,11 @@ envs/
 .env
 
 .python-version
+
+# Local database files
+*.db
+
+# Uploaded runtime files
+media/xray_images/
+media/temp/
+media/heatmap/
