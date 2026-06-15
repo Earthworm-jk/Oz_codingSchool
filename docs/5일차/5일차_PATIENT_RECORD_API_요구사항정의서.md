@@ -125,8 +125,8 @@
 | `patient_id` | integer | Y | 진료 기록을 연결할 환자 ID |
 | `chart_number` | string | Y | 진료 차트 번호, 중복 불가 |
 | `symptoms` | string | Y | 환자의 증상 또는 진료 메모 |
-| `xray_image` | file | Y | X-Ray 이미지 파일 |
-| `shooting_datetime` | datetime | Y | X-Ray 촬영 일시 |
+| `xray_image` | file | N | X-Ray 이미지 파일. 진료 기록만 먼저 등록할 수 있으며, 이미지가 있는 경우 함께 저장 |
+| `shooting_datetime` | datetime | N | X-Ray 촬영 일시. 미입력 시 서버 현재 시각으로 저장 |
 
 ### 6.2 진료 기록 상세 응답 기본 항목
 
@@ -226,4 +226,5 @@
 - 현재 프론트엔드는 `/api/v1/patients`, `/api/v1/medical-records` 계열 API를 기대합니다.
 - 환자 데이터는 `patients` 테이블, 진료 기록은 `medical_records` 테이블, X-Ray 이미지는 `xray_images` 테이블에 나누어 저장하는 구조가 자연스럽습니다.
 - X-Ray 이미지 파일 자체는 DB에 직접 저장하지 않고, 파일 경로 또는 접근 URL을 DB에 저장하는 방식을 권장합니다.
+- 현재 구현에서는 진료 기록 등록 시 X-Ray 이미지와 촬영 일시는 선택 입력으로 처리하며, 촬영 일시가 비어 있으면 서버 현재 시각을 기본값으로 저장합니다.
 - AI 예측 결과는 진료 기록 상세 화면에서 조회되지만, 실제 예측 기능은 별도 AI API 구현 단계에서 다룹니다.
